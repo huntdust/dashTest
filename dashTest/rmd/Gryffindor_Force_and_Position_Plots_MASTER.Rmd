@@ -1,0 +1,749 @@
+---
+title: "RF Cable Testing: Position and Force Analysis"
+author: "Andrew Yokubaitis"
+output:
+html_fragment:
+  theme: cosmo
+---
+
+
+
+```{r, echo=FALSE, eval = FALSE}
+# <script>
+#    $(document).ready(function() {
+#      $head = $('#header');
+#      $head.prepend('<img src=\"C:/Gryffindor/TER_small_crop.png\" style=\"float: right;width: 200px;height: 50px\"/>')
+#    });
+# </script>
+
+
+library(htmltools)
+htmltools::img(src = knitr::image_uri(file.path(R.home("doc"), "html", "C:/Gryffindor/TER_small_crop.png")), 
+#htmltools::img(src = knitr::image_uri(file.path(R.home("doc"), "html", "C:/Users/yokubaia/Pictures/TER_logo.png")), 
+               alt = 'logo', 
+               style = 'position:absolute; top:0; right:0; padding:10px;')
+```
+
+```{r setup, include=FALSE}
+# Clear R session
+rm(list=ls())
+
+# Prevents java OOM errors when trying to create the excel files
+knitr::opts_chunk$set(echo = TRUE, fig.height = 7, fig.width = 10)
+options(java.parameters = "-Xmx10g")
+options(dplyr.summarise.inform = FALSE)
+
+source(file.path("C:/home/dashtest/server.R"), local = TRUE)$value  #
+
+#library(openxlsx)
+#library(xlsx)
+library(readxl)
+library(dplyr)
+library(data.table)
+library(gtools) # enables the mixed sort function
+library(ggplot2)
+library(reshape2)
+library(plotly)
+library(readbulk)
+library(stringr)
+library(tictoc)
+#library(factoextra)
+#library(cluster)
+#library(tidyverse)
+
+# Provide the path to the data
+pth  <- "C:/Users/huntdust/Desktop/ShinyServer/"
+#pth <- "//pilly/jaguar/interface/project/Gryffindor/Data_and_Results/Rosenberger_Cable2/Testing_Demate_Force_Meas2/"
+pth <- paste(pth, input$dataSelection)
+pth <- gsub(" ", "", pth)
+print(pth)
+
+parent <- "C:/Users/huntdust/Desktop/ShinyServer/"
+path <- paste(parent, input$dataSelection)
+path <- gsub(" ", "", path)
+print(path)
+
+
+
+# Used for converting mils to counts so user does not have to be concerened with motor steps
+mils_to_counts = 254
+
+# Used for converting mils to counts so user does not have to be concerened with motor steps
+counts_to_mils = (1/254)
+
+# Add this value to all force measurements to correct for the offset at 0 lbs
+FORCE_CORRECTION_VALUE = 0
+
+# Force the number of clusters to a desired value
+  # Only change this if you know what you are doing with clustering algorithms
+num_clusters <- 3
+clust_num_override <- TRUE
+
+
+
+```
+
+
+```{r X-Y Force plot, echo=FALSE, fig.height=10, fig.width=10, warning=FALSE}
+
+# Select the data file for use here
+file <- "test_log.csv"
+
+# Load the data
+full_path <- paste(pth, file, sep = "/")
+df <- read.csv(full_path, header = TRUE)
+
+# Round off the values in the df
+df <- round(df, 8)
+
+# Convert the X_Position variable from encoder counts to mils
+df$X_Position <- df$X_Position * counts_to_mils
+
+# Add the force correction value
+df$Force <- df$Force + FORCE_CORRECTION_VALUE
+
+
+# Create the plot
+title <- "Y-Z Position Vs Force"
+p <- ggplot(data = df, mapping = aes(x = Y_Position, y = Z_Position, color = Force, group = Cycle)) +
+  geom_point() +
+  labs(x = "Y Offset (Mils)", y = "Z Offset (Mils)") +
+  ggtitle(title) +
+  scale_color_gradientn(colors = rainbow(10)) +
+  xlim(-4,4) +
+  ylim(-4,4) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Create the plot
+p <- ggplotly(p, tooltip = c("Cycle", "Y_Position", "Z_Position", "Force"))
+p
+
+# Print out the min and max forces as well as their cycle number and location
+paste("Max Force:", max(df$Force), "on cycle", df$Cycle[which(df$Force == max(df$Force))], 
+      "at Y-position", df$Y_Position[which(df$Force == max(df$Force))],"and Z-position", df$Z_Position[which(df$Force == max(df$Force))], sep = " ")
+
+paste("Min Force:", min(df$Force), "on cycle", df$Cycle[which(df$Force == min(df$Force))],
+      "at Y-position", df$Y_Position[which(df$Force == min(df$Force))],"and Z-position", df$Z_Position[which(df$Force == min(df$Force))], sep = " ")
+
+
+
+# fig <- plot_ly(df, x = ~Y_Position, y = ~Z_Position, color = ~Force, type = 'scatter', mode = 'markers',
+#                 hoverinfo = 'text',
+#                 text = ~paste('</br> Y Position: ', Y_Position,
+#                               '</br> Z Position: ', Z_Position,
+#                               '</br> Force (lbs): ', Force,
+#                               '</br> Cycle: ', Cycle))
+# 
+# fig <- fig %>% layout(
+#             title = "Force Vs Y-Z Position",
+#             scene = list(
+#               xaxis = list(title = "Y Position"),
+#               yaxis = list(title = "Z Position")
+#             ))
+# 
+# fig
+
+
+
+
+```
+
+
+
+```{r X-Y Force Cluster plot, echo = FALSE, fig.height = 10, fig.width = 10, warning = FALSE, eval = FALSE}
+
+# Selecte the data file for use here
+file <- "test_log.csv"
+
+# Load the data
+full_path <- paste(pth, file, sep = "/")
+df <- read.csv(full_path, header = TRUE)
+
+# Round off the values in the df
+df <- round(df, 8)
+
+# Convert the X_Position variable from encoder counts to mils
+df$X_Position <- df$X_Position * counts_to_mils
+
+# Add the force correction value
+df$Force <- df$Force + FORCE_CORRECTION_VALUE
+
+# Chose the data to use for clustering (in this case it is force, y position, and z position with x position omitted becase it is unchanged)
+df_temp <- df[,c(2,4,5)]
+  
+# Normalizes the data; this seems to provide more accurate clustering results
+df_scale <- scale(df_temp)
+
+
+
+### Determine the optimal numbers of clusters
+
+# set the seed to a consistent values so results are replicable
+set.seed(123)
+
+# Create the plot to determine the optimal number fo clusters based on the sillouette method
+opt_num_clust_plt <- fviz_nbclust(df_scale, kmeans, method = "silhouette")
+#opt_num_clust_plt
+
+# get the optimal number of clusters as determined by that plot
+opt_num_clust <- opt_num_clust_plt$data$clusters[which(opt_num_clust_plt$data$y == max(opt_num_clust_plt$data$y))]
+opt_num_clust <- as.numeric(as.character(opt_num_clust))
+
+
+# Create the model
+km_mod <- kmeans(df_scale, opt_num_clust)
+
+# Remake the model with the specified number of clusters if the user has chosen to override the automatic determination of the cluster number
+if(clust_num_override){
+  km_mod <- kmeans(df_scale, num_clusters)
+}
+
+# visualizes the clusters with PCA
+#fviz_cluster(km_mod, data = df_temp)
+
+
+
+# Show the actual clusters in the y-z plot
+title <- "Y-Z Position Vs Force Cluster Identification"
+p <- df_temp %>%
+    as_tibble() %>%
+    mutate(cluster = km_mod$cluster) %>%
+    ggplot(aes(Y_Position, Z_Position, color = factor(cluster), label = Force)) +
+    geom_point() +
+    labs(x = "Y Offset (Mils)", y = "Z Offset (Mils)") +
+    ggtitle(title) +
+    xlim(-4,4) +
+    ylim(-4,4) +
+    theme_minimal() +
+    theme(plot.title = element_text(hjust = 0.5))
+
+p <- ggplotly(p, tooltip = c("Cycle", "Y_Position", "Z_Position", "Force"))
+p
+
+
+# Show the plot for the optimal number of clusters after the clustered plot for easier side-by-side comparison of the first 2 plots
+opt_num_clust_plt
+fviz_nbclust(df_scale, kmeans, method = "wss")
+
+##### Alt code for clustering... works but more lines than what is below
+#####
+# wss <- function(k) {
+#   kmeans(df_temp, k, nstart = 10 )$tot.withinss
+# }
+# 
+# # Compute and plot wss for k = 1 to k = 15
+# k.values <- 1:15
+# 
+# # extract wss for 2-15 clusters
+# wss_values <- map_dbl(k.values, wss)
+# 
+# plot(k.values, wss_values,
+#      type="b", pch = 19, frame = FALSE,
+#      xlab="Number of clusters K",
+#      ylab="Total within-clusters sum of squares")
+
+# could also use this function instead of the above code to get the plot for the optimal number of clusters
+# fviz_nbclust(df_scale, kmeans, method = "wss")
+# fviz_nbclust(df_temp, kmeans, method = "wss")
+# fviz_nbclust(df_scale, kmeans, method = "silhouette")     # this is the one used to determine the optimal number of clusters
+# fviz_nbclust(df_temp, kmeans, method = "silhouette")
+#####
+
+
+
+```
+
+
+```{r Mating Force Profile Plot, echo = FALSE}
+
+# Selecte the data file for use here
+file <- "mating_force_profile.csv"
+
+# Load the data
+full_path <- paste(pth, file, sep = "/")
+df_mate <- read.csv(full_path, header = TRUE)
+
+# Convert the X_Position variable from encoder counts to mils
+df_mate$X_Position <- df_mate$X_Position * counts_to_mils
+
+# Add the force correction value
+df_mate$Force <- df_mate$Force + FORCE_CORRECTION_VALUE
+
+# Round the data
+#df <- round(df, 8)
+
+# Create the highlight key
+h <- highlight_key(df_mate, ~Cycle)
+
+# Create the title for the plot
+title <- "Force Vs Position During Mating"
+
+# text = sprintf("<br>Force: %s<br>X Position: %s<br>Cycle: %s", Force, X_Position, Cycle)
+# , text = ~paste('</br> X Position: ', ~X_Position,
+#                                                                   '</br> Force: ', ~Force,
+#                                                                   '</br> Cycle: ', ~Cycle)
+p <- ggplot(data = h, mapping = aes(x = X_Position)) +
+  geom_line(size = 0.5, aes(y = Force, color = Cycle)) +
+  labs(x = "Axial Position (Mils)", y = "Force (lbs)") +
+  ggtitle(title) +
+  scale_color_gradientn(colors = rainbow(10)) +
+  theme_minimal() + # this theme makes the plot very similar to the default plotly aesthetic
+  theme(plot.title = element_text(hjust = 0.5))
+
+# Enable the axies to automatically rescale when zooming in/out of the plot; tooltip specifies the data displayed on hover
+p <- ggplotly(p, dynamicTicks = TRUE, tooltip = c("X_Position", "Force", "Cycle")) %>% layout(xaxis = list(autorange = FALSE))
+
+# Select which plot manipulation buttons are displayed in the top right
+p <- config(p, modeBarButtonsToRemove = c("lasso2d", "select2d", "toggleSpikelines","autoScale2d"))
+
+# Specify the operation of the highlight mechanic
+p <- highlight(p, on = "plotly_click", off = "plotly_doubleclick", color = "black")
+
+# Display the plot
+p
+```
+
+
+
+
+```{r Demating Force Profile Plot, echo = FALSE}
+
+# Select the data file for use here
+file <- "demating_force_profile.csv"
+
+# Load the data
+full_path <- paste(pth, file, sep = "/")
+full_path <- gsub(" ", "", full_path)
+
+df_demate <- read.csv(full_path, header = TRUE)
+
+# Convert the X_Position variable from encoder counts to mils
+df_demate$X_Position <- df_demate$X_Position * counts_to_mils
+
+# Add the force correction value
+df_demate$Force <- df_demate$Force + FORCE_CORRECTION_VALUE
+
+# Round the data
+#df_demate <- round(df_demate, 8)
+
+# Create the highlight key
+h <- highlight_key(df_demate, ~Cycle)
+
+
+title <- "Force Vs Position During Demating"
+p <- ggplot(data = h, mapping = aes(x = X_Position)) +
+  geom_line(size = 0.5, aes(y = Force, color = Cycle)) +
+  labs(x = "Axial Position (Mils)", y = "Force (lbs)", col = "Cycle") +
+  ggtitle(title) +
+  scale_color_gradientn(colors = rainbow(10)) + 
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+p <- ggplotly(p, dynamicTicks = TRUE, tooltip = c("X_Position", "Force", "Cycle")) %>% layout(xaxis = list(autorange = FALSE))
+p <- config(p, modeBarButtonsToRemove = c("lasso2d", "select2d", "toggleSpikelines","autoScale2d"))
+p <- highlight(p, on = "plotly_click", off = "plotly_doubleclick", color = "black")
+p
+
+```
+
+
+
+
+
+```{r Create Plots, echo = FALSE, warning = FALSE}
+
+# Load the data
+log_file <- paste(pth, "test_log.csv", sep = "/")
+df <- read.csv(log_file, header = TRUE)
+
+# Round the data
+df <- round(df, 8)
+
+
+# Force over time
+plt <- plot_ly(df, x = ~Cycle, y = ~Force, type = 'scatter', mode = "lines",
+                hoverinfo = 'text',
+                text = ~paste('</br> Force (lbs): ', Force,
+                              '</br> Cycle: ', Cycle))
+
+plt <- plt %>% layout(title = "Mating Force For Each Cycle",
+                      xaxis = list(title = "Cycle Number"),
+                      yaxis = list(title = "Force (lbs)"))
+plt
+
+
+
+
+# Linear positions Over time
+plt <- plot_ly(df, x = ~Cycle)
+plt <- plt %>% add_trace(y = ~X_Position, name = "X Position", type = 'scatter', mode = 'lines',
+                hoverinfo = 'text',
+                text = ~paste('</br> X Position (mils): ', X_Position,
+                              '</br> Cycle: ', Cycle))
+
+plt <- plt %>% add_trace(y = ~Y_Position, name = "Y Position", type = 'scatter', mode = 'lines',
+                hoverinfo = 'text',
+                text = ~paste('</br> Y Position (mils): ', Y_Position,
+                              '</br> Cycle: ', Cycle))
+
+plt <- plt %>% add_trace(y = ~Z_Position, name = "Z Position", type = 'scatter', mode = 'lines',
+                hoverinfo = 'text',
+                text = ~paste('</br> Z Position (mils): ', Z_Position,
+                              '</br> Cycle: ', Cycle))
+
+plt <- plt %>% layout(title = "Linear Stage Position Over Time",
+                      xaxis = list(title = "Cycle Number"),
+                      yaxis = list(title = "Stage Position (mils)"))
+plt
+
+
+
+# Linear Errors Over Time
+plt <- plot_ly(df, x = ~Cycle)
+plt <- plt %>% add_trace(y = ~ER_X_Position, name = "X Position Error", type = 'scatter', mode = 'lines',
+                hoverinfo = 'text',
+                text = ~paste('</br> X Position Error (mils): ', ER_X_Position,
+                              '</br> Cycle: ', Cycle))
+
+plt <- plt %>% add_trace(y = ~ER_Y_Position, name = "Y Position Error", type = 'scatter', mode = 'lines',
+                hoverinfo = 'text',
+                text = ~paste('</br> Y Position Error (mils): ', ER_Y_Position,
+                              '</br> Cycle: ', Cycle))
+
+plt <- plt %>% add_trace(y = ~ER_Z_Position, name = "Z Position Error", type = 'scatter', mode = 'lines',
+                hoverinfo = 'text',
+                text = ~paste('</br> Z Position Error (mils): ', ER_Z_Position,
+                              '</br> Cycle: ', Cycle))
+
+plt <- plt %>% layout(title = "Linear Stage Error Over Time",
+                      xaxis = list(title = "Cycle Number"),
+                      yaxis = list(title = "Stage Error (mils)"))
+plt
+
+
+# Rotary positions Over time
+plt <- plot_ly(df, x = ~Cycle)
+plt <- plt %>% add_trace(y = ~TX_Position, name = "Theta X Position", type = 'scatter', mode = 'lines',
+                hoverinfo = 'text',
+                text = ~paste('</br> Theta X Position (degrees): ', TX_Position,
+                              '</br> Cycle: ', Cycle))
+
+plt <- plt %>% add_trace(y = ~TY_Position, name = "Theta Y Position", type = 'scatter', mode = 'lines',
+                hoverinfo = 'text',
+                text = ~paste('</br> Theta Y Position (degrees): ', TY_Position,
+                              '</br> Cycle: ', Cycle))
+
+plt <- plt %>% add_trace(y = ~TZ_Position, name = "Theta Z Position", type = 'scatter', mode = 'lines',
+                hoverinfo = 'text',
+                text = ~paste('</br> Theta Z Position (degrees): ', TZ_Position,
+                              '</br> Cycle: ', Cycle))
+
+plt <- plt %>% layout(title = "Rotary Stage Position Over Time",
+                      xaxis = list(title = "Cycle Number"),
+                      yaxis = list(title = "Stage Position (degrees)"))
+plt
+
+# Rotary Errors Over Time
+plt <- plot_ly(df, x = ~Cycle)
+plt <- plt %>% add_trace(y = ~ER_TX_Position, name = "Theta X Position Error", type = 'scatter', mode = 'lines',
+                hoverinfo = 'text',
+                text = ~paste('</br> Theta X Error (degrees): ', ER_TX_Position,
+                              '</br> Cycle: ', Cycle))
+
+plt <- plt %>% add_trace(y = ~ER_TY_Position, name = "Theta Y Position Error", type = 'scatter', mode = 'lines',
+                hoverinfo = 'text',
+                text = ~paste('</br> Theta Y Error (degrees): ', ER_TY_Position,
+                              '</br> Cycle: ', Cycle))
+plt <- plt %>% add_trace(y = ~ER_TZ_Position, name = "Theta Z Position Error", type = 'scatter', mode = 'lines',
+                hoverinfo = 'text',
+                text = ~paste('</br> Theta Z Error (degrees): ', ER_TZ_Position,
+                              '</br> Cycle: ', Cycle))
+
+plt <- plt %>% layout(title = "Rotary Stage Error Over Time",
+                      xaxis = list(title = "Cycle Number"),
+                      yaxis = list(title = "Stage Error (degrees)"))
+plt
+
+
+# Old code
+#####
+# # All positions Over time
+# plt <- plot_ly(df, x = ~Cycle)
+# plt <- plt %>% add_trace(y = ~X_Position, name = "X Position", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~Y_Position, name = "Y Position", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~Z_Position, name = "Z Position", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~TX_Position, name = "Theta X Position", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~TY_Position, name = "Theta Y Position", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~TZ_Position, name = "Theta Z Position", type = 'scatter', mode = 'lines')
+# plt <- plt %>% layout(title = "Stage Position Over Time",
+#                       xaxis = list(title = "Cycle Number"),
+#                       yaxis = list(title = "Stage Position (mils or degrees)"))
+# plt
+
+# # All Errors Over Time
+# plt <- plot_ly(df, x = ~Cycle)
+# plt <- plt %>% add_trace(y = ~ER_X_Position, name = "X Position Error", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~ER_Y_Position, name = "Y Position Error", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~ER_Z_Position, name = "Z Position Error", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~ER_TX_Position, name = "Theta X Position Error", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~ER_TY_Position, name = "Theta Y Position Error", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~ER_TZ_Position, name = "Theta Z Position Error", type = 'scatter', mode = 'lines')
+# plt <- plt %>% layout(title = "Stage Positional Error Over Time",
+#                       xaxis = list(title = "Cycle Number"),
+#                       yaxis = list(title = "Stage Error (mils or degrees)"))
+# plt
+
+# # Linear Stage Position and Error
+# ay <- list(
+#   tickfont = list(color = "red"),
+#   overlaying = "y",
+#   side = "right",
+#   title = "Stage Error"
+# )
+# plt <- plot_ly(df, x = ~Cycle)
+# plt <- plt %>% add_trace(y = ~X_Position, name = "X Position", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~Y_Position, name = "Y Position", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~Z_Position, name = "Z Position", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~ER_X_Position, name = "X Position Error", yaxis = "y2", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~ER_Y_Position, name = "Y Position Error", yaxis = "y2", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~ER_Z_Position, name = "Z Position Error", yaxis = "y2", type = 'scatter', mode = 'lines')
+# plt <- plt %>% layout(title = "Linear Stage Position And Error Over Time",
+#                       xaxis = list(title = "Cycle Number"),
+#                       yaxis = list(title = "Stage Position"),
+#                       yaxis2 = ay)
+# plt
+
+# Rotational Stage Position and Error
+# ay <- list(
+#   tickfont = list(color = "red"),
+#   overlaying = "y",
+#   side = "right",
+#   title = "Stage Error"
+# )
+# plt <- plot_ly(df, x = ~Cycle)
+# plt <- plt %>% add_trace(y = ~TX_Position, name = "Theta X Position", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~TY_Position, name = "Theta Y Position", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~TZ_Position, name = "Theta Z Position", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~ER_TX_Position, name = "Theta X Position Error", yaxis = "y2", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~ER_TY_Position, name = "Theta Y Position Error", yaxis = "y2", type = 'scatter', mode = 'lines')
+# plt <- plt %>% add_trace(y = ~ER_TZ_Position, name = "Theta Z Position Error", yaxis = "y2", type = 'scatter', mode = 'lines')
+# plt <- plt %>% layout(title = "Rotational Stage Position And Error Over Time",
+#                       xaxis = list(title = "Cycle Number"),
+#                       yaxis = list(title = "Stage Position"),
+#                       yaxis2 = ay)
+# plt
+#####
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r 3D Plot, echo = FALSE, eval = FALSE}
+
+
+
+file <- "test_log.csv"
+
+# Load the data
+full_path <- paste(pth, file, sep = "/")
+df <- read.csv(full_path, header = TRUE)
+
+# Convert the X_Position variable from encoder counts to mils
+df$X_Position <- df$X_Position * counts_to_mils
+
+# Add the force correction value
+df$Force <- df$Force + FORCE_CORRECTION_VALUE
+
+
+# title <- "X-Y Position Vs Force"
+# p <- ggplot(data = df, mapping = aes(x = Y_Position, y = Z_Position, color = Force)) +
+#   geom_point() +
+#   labs(x = "X Offset (Mils)", y = "Y Offset (Mils)") +
+#   ggtitle(title) +
+#   scale_color_gradientn(colors = rainbow(5)) +
+#   xlim(-4,4) +
+#   ylim(-4,4)
+# p <- ggplotly(p)
+# p
+
+
+
+
+
+# 3D cone
+library(plotly)
+small_df <- df[1:3,]
+names(small_df) <- names(df)
+
+fig <- plot_ly(
+    data = df,
+    type="cone",
+    x= ~X_Position,
+    y= ~Y_Position,
+    z= ~Z_Position,
+    u= ~TX_Position,
+    v= ~TY_Position,
+    w= ~TZ_Position,
+    sizemode= "absolute",
+    sizeref= 2,
+    anchor= "tip",
+    #colorscale = df$Force,
+    colorbar= list(
+        x= 0,
+        xanchor= "right",
+        side= "left"
+    )
+)
+
+
+
+
+
+
+fig <- fig %>%
+    layout(
+        scene= list(
+            domain= list(x= c(0, 1)),
+            camera= list(
+                eye= list(x= -1.57, y= 1.36, z= 0.58)
+            )
+        )
+    )
+
+fig
+
+
+
+
+
+
+```
+
+
+
+
+
+```{r eval = FALSE, echo = FALSE}
+
+
+### attempt to add each point as its own trace in order to control color/size
+
+
+# 3D cone
+library(plotly)
+small_df <- df[1:2,]
+names(small_df) <- names(df)
+
+fig <- plot_ly(
+    data = df,
+    type="cone",
+    x= ~X_Position,
+    y= ~Y_Position,
+    z= ~Z_Position,
+    u= ~TX_Position,
+    v= ~TY_Position,
+    w= ~TZ_Position,
+    sizemode= "absolute",
+    sizeref= 2,
+    anchor= "tip",
+    #colorscale = df$Force,
+    colorbar= list(
+        x= 0,
+        xanchor= "right",
+        side= "left"
+    )
+)
+
+for(i in 3:length(df$Cycle)){
+    mini_df <- df[i,]
+    names(mini_df) <- names(df)
+    fig <- fig %>% add_trace(fig, 
+                             data = mini_df,
+                             type="cone",
+                             x= ~X_Position,
+                             y= ~Y_Position,
+                             z= ~Z_Position,
+                             u= ~TX_Position,
+                             v= ~TY_Position,
+                             w= ~TZ_Position)
+}
+
+
+
+
+fig <- fig %>%
+    layout(
+        scene= list(
+            domain= list(x= c(0, 1)),
+            camera= list(
+                eye= list(x= -1.57, y= 1.36, z= 0.58)
+            )
+        )
+    )
+
+fig
+
+```
+
+
+
+
+
+```{r Mate-Demate Force Difference, echo = FALSE, eval = FALSE}
+
+#### does not currently work due to how the data is measured at different start/stop points
+
+df_diff <- data.frame(df_mate$X_Position, (df_mate$Force - df_demate$Force), df_mate$Cycle)
+names(df_diff) <- c("X_Position", "Force Difference", "Cycle")
+
+diff_plt <- 
+    
+    
+    
+    
+diff_df_new <- match(df_mate, df_demate, ~X_Position)    
+
+    
+title <- "Force Difference between Mate and Demate"
+p <- ggplot(data = df_diff, mapping = aes(x = X_Position)) +
+  geom_line(size = 0.5, aes(y = `Force Difference`, color = Cycle)) +
+  labs(x = "Axial Position (Mils)", y = "Force (lbs)", col = "Cycle") +
+  ggtitle(title) +
+  scale_color_gradientn(colors = rainbow(5))
+ggplotly(p)
+
+
+```
+
