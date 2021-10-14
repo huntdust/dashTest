@@ -2,8 +2,7 @@ library(shiny)
 library(here)
 library(rmarkdown)
 library(tidyverse)
-library(shinywebcam)
-
+library(shinyFiles)
 
 analysispath <- "C:/home/dashTest/Analysis/"
 addResourcePath("tmpuser",getwd())
@@ -54,23 +53,6 @@ server <- function(input,output) {
            "all")
   })
   
-  observe({
-    #Need to have webcam image saving every 50msec as a png file to network drive 
-    invalidateLater(50, session = getDefaultReactiveDomain())
-    output$outImage <- renderImage({
-      filename <- ("C:/users/huntdust/desktop/testImage.png")
-      list(src=filename)
-      
-    },
-    deleteFile=FALSE)  
-    
-    output$md_file <- renderUI({
-      file <- "C:/home/dashTest/rmd/Gryffindor_Force_and_Position_Plots_MASTER.Rmd"
-      includeMarkdown(file) 
-      
-    })
-    
-  })
   
   observeEvent(input$runAnalysis, {
     #should a seperate version of these scripts be kept with different file paths for the server? The paths are inherently different...
@@ -84,7 +66,18 @@ server <- function(input,output) {
     
   })
   
+  #S2p Drag/Drop handling 
+  output$fileNames <- renderTable({
+    # Return immediately if user doesn't select any files.
+    if (is.null(input$csvFiles)) {
+      return()
+    }
+    return(input$csvFiles)
+  })
   
+  renderedTableObj <- reactive({
+    
+  })
   
   getPage <- function() {
     file <- input$analysisSelection
@@ -119,6 +112,87 @@ server <- function(input,output) {
            caption = "Source: midwest")
     
     gg
+  })
+  
+  output$s2pPlot <- renderPlotly({
+    file <- input$csvFiles
+    data <- tools::file_ext(file$datapath)
+    
+    req(file)
+    validate(need(data=="s2p","Please upload an s2p file"))
+    s2pdata <- read.csv(file$datapath)
+    print(file$datapath)
+    
+    skrf <- import("skrf")
+    plt <- import("matplotlib.pyplot")
+    net <- skrf$Network(file$datapath)
+
+    s11 <- net$s11
+    f <- s11$f
+    db <- s11$s_db
+    data <- data.frame(f,db)
+    data$db <- unlist(data$db)
+    print(db)
+    
+    #+ scale_x_continuous(trans = 'log10') + scale_y_continuous(trans = 'log10')
+    plot <- ggplot(data, aes(x = f, y = db)) + geom_line(aes(group=1)) + labs(x = "Frequency", y = "Magntitude (dB)") + ggtitle('S11')
+    plot
+    
+  })
+  
+  output$s2pPlot2 <- renderPlotly({
+    file <- input$csvFiles
+    data <- tools::file_ext(file$datapath)
+    
+    req(file)
+    validate(need(data=="s2p","Please upload an s2p file"))
+    s2pdata <- read.csv(file$datapath)
+    print(file$datapath)
+    
+    skrf <- import("skrf")
+    plt <- import("matplotlib.pyplot")
+    net <- skrf$Network(file$datapath)
+    
+    s12 <- net$s12
+    f <- s12$f
+    db2 <- s12$s_db
+    
+    data2 <- data.frame(f,db2)
+    #data2$db2 <- unlist(data2$db2)
+    #data2$db2 <- Re(data2$db2)
+    
+    #Add new plot rather than overwriting 
+    plot2 <- ggplot(data2, aes(x = f, y = db2)) + geom_line(aes(group=1)) + labs(x = "Frequency", y = "Magntitude (dB)") + ggtitle('S12')
+    plot2
+  })
+  
+  output$timePlot <- renderPlotly({
+    file <- input$csvFiles
+    data <- tools::file_ext(file$datapath)
+    
+    req(file)
+    validate(need(data=="s2p","Please upload an s2p file"))
+    s2pdata <- read.csv(file$datapath)
+    print(file$datapath)
+    
+    skrf <- import("skrf")
+    plt <- import("matplotlib.pyplot")
+    net <- skrf$Network(file$datapath)
+    
+    s11 <- net$s11
+    s11_ext <- s11$extrapolate_to_dc()
+    t <- s11_ext$step_response()[[1]]
+    z <- s11_ext$step_response()[[2]]
+    
+    t<- t*10e9
+    x <- 50*(1+z)/(1-z)
+    z <- x
+    data <- data.frame(t,z)
+    
+    tdr <- ggplot(data, aes(x = t, y = z)) + geom_line(aes(group=1)) + labs(x = "Time (s)", y = "Impedance (Ohm)") + ggtitle('Time domain conversion')
+    tdr
+    
+    
   })
   
   output$tempPlot <- renderPlotly({
@@ -162,14 +236,6 @@ server <- function(input,output) {
     
   })
   
-  liveish_data <- reactive({
-    invalidateLater(100)
-    
-    #photo feed code
-    
-    
-    
-  })
   
   output$humgraph <- renderPlotly({
     dims <- dim(amb)
@@ -201,7 +267,7 @@ server <- function(input,output) {
     humgraph
   })  
   
-  
+  shinyFileChoose(input, 'files', root=c(root='.'), filetypes=c('', '.txt', '.html', '.s2p', '.R', '.Rmd'))
   
   output$htmlout <- renderUI({getPage()})
   

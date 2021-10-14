@@ -6,7 +6,7 @@ library(rmarkdown)
 library(knitr)
 library(shinywebcam)
 library(bslib)
-
+library(shinyFiles)
 
 datapath <- "C:/Users/huntdust/Desktop/ShinyServer/"
 analysispath <- "C:/home/dashTest/Analysis/"
@@ -18,7 +18,7 @@ analysistypes <- list.files(RMDPath)
 setwd("C:/home/dashTest")
 
 ui <- 
-  navbarPage("Demo", collapsible = TRUE, inverse = TRUE, theme = shinytheme("cosmo"),
+  navbarPage("Demo", collapsible = TRUE, inverse = TRUE, theme = shinytheme("darkly"),
              tabPanel("SamplePlot",
                       fluidPage(
                         tabsetPanel(
@@ -146,20 +146,67 @@ ui <-
                       
                       
              ),
-             tabPanel("webcam test",
+             tabPanel("S2P plot",
                       fluidPage(
                         sidebarLayout(
                           sidebarPanel(
-                            #takeSnapshot(),
-                            #snapshotButton(),
+                            fileInput(
+                              inputId = "csvFiles",
+                              label = "Select an S2P file",
+                              multiple = TRUE,
+                              buttonLabel = "Browse...",
+                              placeholder = "No file selected"
+                            )
                           ),
                           mainPanel(
-                            #startWebcam(width = 320, height = 240, quality = 100),
-                            #imageOutput('outImage')
+                            fluidRow(
+                              plotlyOutput(outputId = "s2pPlot")
+                            ), br(),
+                            fluidRow(
+                              plotlyOutput(outputId = "s2pPlot2")
+                            ), br(),
+                            fluidRow(
+                              plotlyOutput(outputId = "timePlot")
+                            )
+                           
+                          
+                           #plotlyOutput(outputId = "s2pPlot")
+                            
+                          #  fluidRow(
+                          #    plotlyOutput(outputId = "s2pPlot")
+                          #  ), br(),
+                          #  fluidRow(
+                          #    plotlyOutput(outputId = "timePlot")
+                          #  )
+                         
+                            
                           )
                         )
                       )
              ),
-             tabPanel("About")
-             
+             tabPanel("Time domain plot",
+                      fluidPage(
+                        sidebarLayout(
+                          sidebarPanel(
+                            fileInput(
+                              inputId = "csvFiles",
+                              label = "Drag and drop here",
+                              multiple = TRUE,
+                              buttonLabel = "Browse...",
+                              placeholder = "No file selected"
+                            )
+                          ),
+                          mainPanel(
+                            #plot goes here
+                            #plotlyOutput(outputId = "timePlot")
+                            
+                          )
+                        )
+                      )
+             ),
+             tabPanel("shinyFiles",
+                      bootstrapPage(
+                        shinyFilesButton('files', label='File select', title='Please select a file', multiple=FALSE)
+                      ))
+        
   )

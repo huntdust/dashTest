@@ -6,6 +6,7 @@ library(rmarkdown)
 library(knitr)
 library(shinywebcam)
 library(bslib)
+library(esquisse)
 
 
 datapath <- "C:/Users/huntdust/Desktop/ShinyServer/"
@@ -18,7 +19,7 @@ analysistypes <- list.files(RMDPath)
 setwd("C:/home/dashTest")
 
 ui <- 
-  navbarPage("Demo", collapsible = TRUE, inverse = TRUE, theme = shinytheme("cosmo"),
+  navbarPage("Demo", collapsible = TRUE, inverse = TRUE, theme = shinytheme("darkly"),
              tabPanel("SamplePlot",
                       fluidPage(
                         tabsetPanel(
@@ -146,7 +147,7 @@ ui <-
                       
                       
              ),
-             tabPanel("webcam test",
+             tabPanel("esquisse test",
                       fluidPage(
                         sidebarLayout(
                           sidebarPanel(
