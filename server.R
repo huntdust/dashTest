@@ -1,8 +1,9 @@
 library(shiny)
 library(here)
 library(rmarkdown)
-library(tidyverse)
-library(shinyFiles)
+#library(tidyverse)
+#library(shinyFiles)
+library(ggplot2)
 
 analysispath <- "/opt/shiny-server/samples/sample-apps/dashtest/analysis"
 addResourcePath("tmpuser",getwd())
