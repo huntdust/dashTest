@@ -271,7 +271,7 @@ server <- function(input,output) {
     humgraph
   })  
   
-  shinyFileChoose(input, 'files', root=c(root='.'), filetypes=c('', '.txt', '.html', '.s2p', '.R', '.Rmd'))
+  #shinyFileChoose(input, 'files', root=c(root='.'), filetypes=c('', '.txt', '.html', '.s2p', '.R', '.Rmd'))
   
   output$htmlout <- renderUI({getPage()})
   
