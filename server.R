@@ -4,19 +4,21 @@ library(rmarkdown)
 library(tidyverse)
 library(shinyFiles)
 
-analysispath <- "C:/home/dashTest/Analysis/"
+analysispath <- "/opt/shiny-server/samples/sample-apps/dashtest/analysis"
 addResourcePath("tmpuser",getwd())
+reticulate::use_virtualenv("/opt/shiny-server/samples/sample-apps/dashtest/testenv",required=TRUE")
+reticulate::use_python("/usr/bin/python2.7")
 
 server <- function(input,output) {
   
   
-  basepath <- 'C:/home/dashTest/dashTest/'
+  basepath <- '/opt/shiny-server/samples/sample-apps/dashtest/'
   ev <- reactiveValues(data=NULL)
   
   source(file.path("samplePlot.R"), local = TRUE)$value  #sample plot
   source(file.path("samplePlot2.R"), local = TRUE)$value  #sample plot
   source(file.path("tempPlot.R"), local=TRUE)$value      #Temp Plot
-  source(file.path("humPlot.R"), local=TRUE)$value      #Temp Plot
+  #source(file.path("humPlot.R"), local=TRUE)$value      #Temp Plot
   
   groupInput <- reactive({
     switch(input$group1,

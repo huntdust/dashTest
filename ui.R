@@ -8,14 +8,14 @@ library(shinywebcam)
 library(bslib)
 library(shinyFiles)
 
-datapath <- "C:/Users/huntdust/Desktop/ShinyServer/"
-analysispath <- "C:/home/dashTest/Analysis/"
-RMDPath <- "C:/home/dashTest/rmd/"
+datapath <- "/mnt/Gryffindor/Data_and_Results"
+analysispath <- "/opt/shiny-server/samples/sample-apps/dashtest/analysis"
+RMDPath <- "/opt/shiny-server/samples/sample-apps/dashtest/rmd"
 datafiles <- list.files(datapath)
 analysisfiles <- list.files(analysispath)
 analysistypes <- list.files(RMDPath)
 
-setwd("C:/home/dashTest")
+setwd("/opt/shiny-server/samples/sample-apps/dashtest")
 
 ui <- 
   navbarPage("Demo", collapsible = TRUE, inverse = TRUE, theme = shinytheme("darkly"),
