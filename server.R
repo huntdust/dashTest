@@ -196,9 +196,6 @@ server <- function(input,output) {
   })
   
   output$tempPlot <- renderPlotly({
-    dims <- dim(amb)
-    dim <- dims[1]
-    
     
     
     data <- switch(input$tempSensors,
@@ -215,6 +212,9 @@ server <- function(input,output) {
                     "1 month"= 8640, 
                     "all"    = dim)
     
+    dims <- dim(data)
+    dim <- dims[1]
+    
     #Create datelist 
     
     #date1 <- '07/07/2021'
@@ -225,7 +225,8 @@ server <- function(input,output) {
     dates <- data[c(lowerbound:dim),c(1:1)]
     dates <- dates[seq(1, range, (range/5))]
     
-    
+    print(c(lowerbound:dim))
+    #print(data[c(lowerbound:dim),c(1:3)])
     #scale_x_discrete w/premade label set or scale_x_continuous() for xtick spacing adjustment 
     #plot range needs to show tail end of data, not the first couple datapoints
     #
