@@ -122,8 +122,7 @@ server <- function(input,output) {
   })
   
   output$tempPlot <- renderPlotly({
-    dims <- dim(amb)
-    dim <- dims[1]
+ 
     
     
     
@@ -140,13 +139,10 @@ server <- function(input,output) {
                     "5 days" = 1440,
                     "1 month"= 8640, 
                     "all"    = dim)
+
+    dims <- dim(data)
+    dim <- dims[1]
     
-    #Create datelist 
-    
-    #date1 <- '07/07/2021'
-    #finaldate <- format(Sys.time(), "%m/%d")
-    
-    #construct compacted date list 
     lowerbound <- dim-range
     dates <- data[c(lowerbound:dim),c(1:1)]
     dates <- dates[seq(1, range, (range/5))]
@@ -172,8 +168,6 @@ server <- function(input,output) {
   })
   
   output$humgraph <- renderPlotly({
-    dims <- dim(amb)
-    dim <- dims[1]
     
     data <- switch(input$humSensors,
                    "Ambient_SD"  = amb,
@@ -189,6 +183,9 @@ server <- function(input,output) {
                     "1 month"= 8640, 
                     "all"    = dim)
     
+    
+    dims <- dim(data)
+    dim <- dims[1]
     
     #generate compactified datelist
     lowerbound <- dim-range
