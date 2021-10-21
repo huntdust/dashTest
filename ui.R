@@ -138,14 +138,7 @@ ui <-
                                        
                                      )
                                    ))
-                        ))), 
-             tabPanel("Live plot generation",
-                      
-                      #includeMarkdown("test.rmd")
-                      uiOutput("md_file")
-                      
-                      
-             ),
+                        ))),
              tabPanel("S2P plot",
                       fluidPage(
                         sidebarLayout(
@@ -183,30 +176,6 @@ ui <-
                           )
                         )
                       )
-             ),
-             tabPanel("Time domain plot",
-                      fluidPage(
-                        sidebarLayout(
-                          sidebarPanel(
-                            fileInput(
-                              inputId = "csvFiles",
-                              label = "Drag and drop here",
-                              multiple = TRUE,
-                              buttonLabel = "Browse...",
-                              placeholder = "No file selected"
-                            )
-                          ),
-                          mainPanel(
-                            #plot goes here
-                            #plotlyOutput(outputId = "timePlot")
-                            
-                          )
-                        )
-                      )
-             ),
-             tabPanel("shinyFiles",
-                      bootstrapPage(
-                        shinyFilesButton('files', label='File select', title='Please select a file', multiple=FALSE)
-                      ))
+             )
         
   )
