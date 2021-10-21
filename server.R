@@ -197,7 +197,8 @@ server <- function(input,output) {
   
   output$tempPlot <- renderPlotly({
  
-    
+    dims <- dim(data)
+    dim <- dims[1]
     
     
     data <- switch(input$tempSensors,
@@ -234,6 +235,9 @@ server <- function(input,output) {
   
   
   output$humgraph <- renderPlotly({
+    dims <- dim(data)
+    dim <- dims[1]
+    
     
     data <- switch(input$humSensors,
                    "Ambient_SD"  = amb,
