@@ -7,6 +7,7 @@ library(knitr)
 library(shinywebcam)
 library(bslib)
 library(shinyFiles)
+library(DT)
 
 datapath <- "C:/Users/huntdust/Desktop/ShinyServer/"
 analysispath <- "C:/home/dashTest/Analysis/"
@@ -18,37 +19,7 @@ analysistypes <- list.files(RMDPath)
 setwd("C:/home/dashTest")
 
 ui <- 
-  navbarPage("Demo", collapsible = TRUE, inverse = TRUE, theme = shinytheme("darkly"),
-             tabPanel("SamplePlot",
-                      fluidPage(
-                        tabsetPanel(
-                          tabPanel("Plot1",br(),
-                                   sidebarLayout(
-                                     sidebarPanel(
-                                       radioButtons(
-                                         inputId = "plotSelection",
-                                         label = "Choose a plot",
-                                         choices = c("Temperature",
-                                                     "Humidity")), br()
-                                     ),
-                                     
-                                     mainPanel(plotlyOutput(outputId = "samplePlot",height="600px"))
-                                   )),
-                          
-                          tabPanel("Plot2",br(),
-                                   sidebarLayout(
-                                     sidebarPanel(
-                                       radioButtons(
-                                         inputId = "plotSelection",
-                                         label = "Choose a plot",
-                                         choices = c("Temperature",
-                                                     "Humidity")), br()
-                                     ),
-                                     
-                                     mainPanel(plotlyOutput(outputId = "samplePlotTwo", height = "600px"))
-                                   ))
-                        )
-                      )),
+  navbarPage("Data visualization and analysis tools",id='tabs', collapsible = TRUE, inverse = TRUE, theme = shinytheme("cosmo"),
              tabPanel("Temperature/Humidity Plots",
                       fluidPage(
                         tabsetPanel(
@@ -105,7 +76,7 @@ ui <-
                                        #imageOutput(outputId = "humPlot", height = "900px", width="900px")
                                      )
                                    ))
-                          
+                    
                           
                         ))),
              tabPanel("HTML Demos",
@@ -144,12 +115,16 @@ ui <-
                         sidebarLayout(
                           sidebarPanel(
                             fileInput(
-                              inputId = "csvFiles",
-                              label = "Select an S2P file",
+                              inputId = "s2pFiles",
+                              label = "Select S2P files",
                               multiple = TRUE,
                               buttonLabel = "Browse...",
                               placeholder = "No file selected"
-                            )
+                            ),
+                            shinyFilesButton("Btn_GetFile", "Choose a file" ,
+                                             title = "Please select a file:", multiple = FALSE,
+                                             buttonType = "default", class = NULL),
+                          
                           ),
                           mainPanel(
                             fluidRow(
@@ -176,6 +151,106 @@ ui <-
                           )
                         )
                       )
-             )
-        
+             ),
+             tabPanel("Advanced RF Analysis",
+                      tabsetPanel(
+                        tabPanel("RF Analysis Part 1",
+                           fluidPage(     
+                            sidebarLayout(
+                              sidebarPanel(
+                                   #fileInput(
+                                  #   inputId = "RF1",
+                                  #   label = "S2p Files",
+                                  #   multiple = TRUE,
+                                  #   buttonLabel = "Browse...",
+                                  #   placeholder = "No file selected"
+                                  #), br(), 
+                                    
+                                      actionButton("dir", 'select a folder'), 
+                                      actionButton("runRF1", "Run Analysis",class = "btn-success"), br(), br(),
+                                      actionButton("downloadRF1", "Download Report",class = "btn-success"),
+                      
+                                   ),
+                              mainPanel(
+                                textOutput(""),
+                                htmlOutput("RF1_analysis")
+                                #selectInput(inputId = "dataSelection",label= "Select dataset", choices = datafiles)
+                                
+                              ))
+                                 )),
+                        tabPanel("RF Anaslysis Part 2",
+                            sidebarPanel(
+                                  actionButton("runRF2", "Run Analysis",class = "btn-success"),
+                                  selectInput(inputId = "RF1_pth",label= "", choices = getwd()),
+                                  actionButton("dir", 'select a folder'),
+                                  actionButton("runRF1", "Run Analysis",class = "btn-success"), br(), br(),
+                                  actionButton("downloadRF1", "Download Report",class = "btn-success"),
+                                  dir <- getwd(),
+                                 ))
+                           )
+                        ),
+             tabPanel("TEC Plot",
+                      fluidPage(
+                        sidebarLayout(
+                          sidebarPanel(
+                            fileInput(
+                              inputId = "TEC_File",
+                              label = "Select TEC Data",
+                              multiple = FALSE,
+                              buttonLabel = "Browse...",
+                              placeholder = "No file selected"
+                            ),
+                            fileInput(
+                              inputId = "padFile",
+                              label = "Select Pad Package Input File",
+                              multiple = FALSE,
+                              buttonLabel = "Browse...",
+                              placeholder = "No file selected"
+                            ),
+                            textInput("maxR",label='Resistance Threshold',value='0.1')
+                            #shinyFilesButton('TEC_File',label = 'File select', title = 'Please select file', multiple = FALSE)
+                          ),
+                          mainPanel(
+                             # do.call(tabsetPanel, c(id='tab',lapply(1:5, function(i) {
+                             #     tabPanel(
+                             #        title=paste0('tab ', i),
+                             #        textOutput(paste0('out',i)),
+                             #        #plotlyOutput(outputId = "TEC_Analysis", height = "1000px", width = "900px"),
+                             #        #DTOutput("TEC_Stats", width = "100%",height = "auto")
+                             #   )
+                             # })))
+                            
+                            #tabsetPanel(id='TECTabs',type='tabs')
+                           
+                            #sliderInput(inputId='TECSlider','TEC cycle', min=0,5,value=2)
+                            
+                            uiOutput('slider'),
+                            plotlyOutput(outputId = "TEC_Analysis", height = "1000px", width = "900px"),
+                            DTOutput("TEC_Stats", width = "90%",height = "auto"), br(),
+                            plotlyOutput(outputId = 'pads',width='50%',height="auto")
+                          )
+                        )
+                      )   
+             ),
+          tabPanel("Cycle Plot",
+                   fluidPage(
+                     sidebarLayout(
+                       sidebarPanel(
+                         fileInput(
+                           inputId = "Cycles_File",
+                           label = "Select Cycling Data",
+                           multiple = TRUE,
+                           buttonLabel = "Browse...",
+                           placeholder = "No file selected"
+                         ),
+                         textInput("maxRC",label='Resistance Threshold',value='0.1'),
+                         checkboxInput("enableForce", "Show force trace", value = FALSE)
+                       ),
+                       mainPanel(
+                         plotlyOutput(outputId='CyclesPlot')
+                         
+                       )
+                     )
+                   )
+                   )
   )

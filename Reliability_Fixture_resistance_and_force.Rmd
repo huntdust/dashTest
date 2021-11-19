@@ -1,0 +1,173 @@
+---
+title: "Gold_Leaf_Interposer_TEC"
+author: "Andrew Yokubaitis"
+date: "June 17, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+library(varhandle)
+library(reshape2)
+library(ggplot2)
+library(tictoc)
+library(plotly)
+
+###################
+### User Inputs ###
+###################
+
+# Get the path to the data file
+pth <- "C:/Users/yokubaia/Desktop/Reliability Fixture MatLab/data_resistance_REL_FULL_06-13-2019_17-06-42_ThirdTEC_2cycles.txt"
+
+# Generate a plot every *what* percent of cycles
+pct <- 1 
+```
+
+
+
+```{r Clean Data, warning = FALSE}
+d <- read.delim(pth, header = FALSE, sep = "\t", dec = ".", fill = TRUE)
+
+# Store the total number of measurements and measurements per cycle for use later
+temp <- unfactor(d$V1)
+total_meas <- as.numeric(temp[1])
+meas_per_sweep <- as.numeric(temp[2])
+num_loops <- total_meas / meas_per_sweep
+pct_loops <- pct * num_loops
+
+# Rename the data
+temp <- c(0)
+for(i in 1:length(d[4,])){
+  temp[i] <- as.character(d[4,][[i]])
+}
+names(d) <- temp
+
+# Delete the unneeded rows
+d <- d[-c(1:4),]
+
+# Delete the unneeded columns
+d <- d[,-c(1,2,3,45)]
+
+
+# Renumber the rows
+row.names(d) <- 1:nrow(d)
+
+
+# Change the values of d to numerics
+for(i in 1:ncol(d)){
+  temp <- d[,i]
+  temp <- as.numeric(levels(temp))[temp]
+  d[,i] <- temp
+}
+
+# Create a "loop" vairable and cbind it to d
+Loop <- c()
+temp2 <- c(0)
+for(i in 1:num_loops){
+  temp2 <- rep(i, meas_per_sweep)
+  Loop <- c(Loop,temp2)
+}
+d <- cbind(d,Loop)
+
+# Clear all the open values and set them to .5
+d[which(d == 1e+38)] <- 1
+
+```
+
+
+```{r Plot}
+# Create the molten data frame
+temp_melt <- melt(d,id = c("Loop","External Z Delayed", "LdCel 0"), variable.name = "Channel", value.name = "Resistance")
+
+temp_melt$Resistance
+
+
+# Plot ALL data on same plot and color by loop  WITHOUT A LEGEND SO IT OVERLAYS PERVIOUS PLOTS BETTER
+chan_loop <- paste(temp_melt$Loop,temp_melt$Channel)
+temp_melt <- cbind(temp_melt, chan_loop)
+
+
+
+
+temp <- plot_ly(x = temp_melt$`External Z Delayed`[which(temp_melt$Loop == 1 & temp_melt$Channel == "J5.1")], 
+                y = temp_melt$Resistance[which(temp_melt$Loop == 1 & temp_melt$Channel == "J5.1")], 
+                type = 'scatter', mode = 'lines', 
+                color = as.numeric(unique(temp_melt$Channel)[1]))
+
+temp <-  layout(temp,
+              title = "2 axis attempt",
+              scene = list(
+                xaxis = list(title = "Distance From Zero Point (mils)", range = c(14,56)),
+                yaxis = list(title = "Resistance (ohms)", range = c(0,.002))
+                ))
+temp
+
+for(i in 2:length(unique(temp_melt$Channel))){
+  temp <- add_trace(temp, x = temp_melt$`External Z Delayed`[which(temp_melt$`External Z Delayed` == unique(temp_melt$`External Z Delayed`)[i])], 
+                    y = temp_melt$Resistance[which(temp_melt$Loop == unique(temp_melt$Loop)[i])], 
+                    type = 'scatter', mode = 'lines', opacity = 1, 
+                    color = temp_melt$Channel[which(plotly_melt$Cycle == unique(plotly_melt$Cycle)[i])], line = list(reverscale = TRUE))
+}
+
+
+
+
+
+
+
+# Create the plot
+p <- plot_ly(x = plotly_melt$Cycle[which(plotly_melt$Cycle == 1)], y = plotly_melt$Freq..GHz.[which(plotly_melt$Cycle == 1)] / 1000000000, 
+             z = plotly_melt$value[which(plotly_melt$Cycle == 1)], type = 'scatter3d', mode = 'lines', opacity = 1, 
+             color = plotly_melt$Cycle[which(plotly_melt$Cycle == 1)], line = list(reverscale = TRUE)) %>% 
+    layout(
+      title = plt_title,
+      scene = list(
+        xaxis = list(title = "DIB Docks"),
+        yaxis = list(title = "Frequency (GHz)"),
+        zaxis = list(title = "S21 Magnitude (dB)")
+    ))
+
+# Add all the traces to the plot
+for( i in 2:length(unique(plotly_melt$Cycle))){
+  p <- add_trace(p, x = plotly_melt$Cycle[which(plotly_melt$Cycle == unique(plotly_melt$Cycle)[i])], 
+                    y = plotly_melt$Freq..GHz.[which(plotly_melt$Cycle == unique(plotly_melt$Cycle)[i])] / 1000000000, 
+                    z = plotly_melt$value[which(plotly_melt$Cycle == unique(plotly_melt$Cycle)[i])], type = 'scatter3d', mode = 'lines', opacity = 1, 
+                    color = plotly_melt$Cycle[which(plotly_melt$Cycle == unique(plotly_melt$Cycle)[i])], line = list(reverscale = TRUE))
+}
+
+
+
+
+
+
+
+# Plot ALL data on same plot and color by loop
+all2 <- ggplot(temp_melt, aes(x = `External Z Delayed`)) +
+  geom_line(aes(y = Resistance, group = Channel, color = Channel)) +
+  geom_line(aes(y = `LdCel 0`)) +
+  ggtitle("Resistance of HCE Interposer Paths over All Channels and All Loops") +
+  scale_x_continuous(name = "Compression Distance (mils)", limits = c(15, 56), breaks = seq(0,56,5)) +
+  scale_y_continuous(name = "Resistance", limits = c(0.0, 0.005), breaks = seq(0, 0.1, 0.01)) +
+  #scale_y_continuous(sec.axis = sec_axis(~.*5, name = "Force (lbs)")) + 
+  theme( axis.text.x = element_text(angle = 45), axis.text.y = element_text(angle = 0))
+
+ggplotly(all2)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,119 @@
+---
+title: "Gold_Leaf_Interposer_TEC"
+author: "Andrew Yokubaitis"
+date: "June 17, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+rm(list=ls())
+library(varhandle)
+library(reshape2)
+library(ggplot2)
+library(tictoc)
+library(plotly)
+
+
+
+### CRUCIAL FOR PROPER OPERATION ###
+
+# For this script to work correctly there is some data that needs to be deleted from the
+# beginning of the TEC resistance files.  In order for the script to correctly parse the
+# data, please delete everything in the .txt file above the data names row so that "Cycle#" 
+# are the first characters in the file on line 1. There should be no blank rows or other 
+# text above the row of data names, and only test data below the row of names.
+
+
+###################
+### User Inputs ###
+###################
+
+# Get the path to the data file
+pth <- "C:/Users/huntdust/Desktop/data_resistance_REL_FULL_07-25-2021_19-45-19.txt"
+#pth <- input$TEC_File
+
+# if(!is.null(input$TEC_File)){
+#       # browser()
+#       file_selected<-parseFilePaths(volumes, input$TEC_File)
+#       path <- dirname(file_selected$datapath)
+#       print(path)
+#     }
+# pth <- path
+
+# Generate a plot every *what* percent of cycles
+pct <- 1 
+
+# Set the max y/resistance value for the plot
+max_resistance <- .1
+
+```
+
+
+```{r Create Bounded TEC Plot, warning = FALSE}
+# Load in the data
+d <- read.delim(pth, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
+
+
+# Get the columns 
+first_resistance_column <- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
+last_resistance_coluimn <- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+
+# Create the plot
+plt <- plot_ly(data = d, type = "scatter", mode = "lines")
+for(i in first_resistance_column:last_resistance_coluimn){
+  plt <- plt %>% add_trace(x = ~External.Z.Delayed, y = d[,i], name = names(d)[i])
+}
+
+# Add labels and set range limit
+plt_title <- c("Total Electrical Compliance")
+plt <- plt %>% layout(xaxis = list(title = "Distance (mils)"), 
+                      yaxis = list(range = c(0,max_resistance), 
+                                   title = c("Resistance (Ohms)")),
+                      title = plt_title, 
+                      showlegend = FALSE)
+plt
+```
+
+
+```{r Create Full TEC Plot, warning = FALSE}
+# This produces the exact same plot as the above code, but does not limit the range of the y-axis so that opens can be seen
+
+
+# Load in the data
+d <- read.delim(pth, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
+
+
+# Get the columns 
+first_resistance_column <- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
+last_resistance_coluimn <- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+
+# Create the plot
+plt <- plot_ly(data = d, type = "scatter", mode = "lines")
+for(i in first_resistance_column:last_resistance_coluimn){
+  plt <- plt %>% add_trace(x = ~External.Z.Delayed, y = d[,i], name = names(d)[i])
+}
+
+# Add labels and set range limit
+plt_title <- c("Total Electrical Compliance")
+plt <- plt %>% layout(xaxis = list(title = "Distance (mils)"), 
+                      yaxis = list(title = "Resistance (Ohms)"), 
+                      title = plt_title, 
+                      showlegend = FALSE)
+plt
+```
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

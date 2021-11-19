@@ -1,0 +1,1815 @@
+---
+title: "RF_Analysis_Section1"
+author: "Andrew Yokubaitis"
+date: "5/11/2021"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+# Clear R session
+rm(list=ls())
+
+# Prevents java OOM errors when trying to create the excel files
+knitr::opts_chunk$set(echo = TRUE, fig.height = 7, fig.width = 10)
+options(java.parameters = "-Xmx10g")
+
+#library(openxlsx)
+#library(xlsx)
+library(readxl)
+library(dplyr)
+library(data.table)
+library(gtools) # enables the mixed sort function
+library(ggplot2)
+library(reshape2)
+library(plotly)
+library(readbulk)
+library(stringr)
+library(tictoc)
+#options(digits = 14)
+options(dplyr.summarise.inform = FALSE)
+
+# Old code
+# ##########################
+# # User defined variables #
+# 
+# 
+# # Path to where the data is stored
+#   # Note: Windows uses "\" in its file names by default and they must be chagned to "/" in the script to function properly
+# #pth <- "//pilly/jaguar/interface/project/MX-44/Agoura Hills Data Analysis and Pics/Data and Analysis/Gore/Gore_PA_Bit63/Data/All_Data_Every_10th"
+# #pth <- "C:/R_Programs/Nutcracker_Data/Falcon_Pair_1/Test1"
+# #pth <- "E:/Teradyne_WFH/Falcon_Cross-Corr_Data/All_Data/Test1"
+# #pth <- "//pilly/jaguar/interface/project/MX44e/Pilot Line Issues/s2p"
+# 
+# pth <- "C:/Teradyne/Rosenberger_Test1/s2p_data"
+#   #need to redo 11-13 with the new mods that roger requested
+# 
+# company <- "Rosenberger"
+# 
+# cable_name <- "Test Cable 1"
+# 
+# # Total number of cycles the cable experienced during the collection of this data set
+# total_cycles <- 220
+# 
+# # Sets the Number of cycles between measurements; allows use of less data to lower computation time
+# cycs_between_meas <- 1
+# 
+# # declare how many cables are included in this data set so that the max phase shift between cables can be correctly calculated
+# num_cables <- 1
+# 
+# # Defines the number of traces included in a "window" for any of the plots that are calculated in that method
+#   # Increasing the size of this variable can drastically increase computation time; do so wisely or with testing
+# window_size <- 8
+# 
+# 
+# 
+# 
+# # Specify if this data is from a Falcon test and should therefore have the adpater losses subtracted from the results
+# is_falcon <- FALSE
+# 
+# # Set the value and indicator for whether or not to use further sample reduction
+# reduction_indicator <- FALSE
+# reduction_count <- 5
+# 
+# 
+# # Speficy whether or not to print the name of every data file used during compliation
+# print_data_names <- FALSE
+# 
+# 
+# # Freq to check insertion loss and return loss at to see how it varies over time
+# desired_freq_high <- 53
+# desired_freq_low  <- 10
+# 
+# 
+# # Specify if which S11 and S21 specs should be used in the plots
+#   # values can be low, mid, high, or mx44
+# s11_spec <- "Falcon"
+# s21_spec <- "Falcon"
+# 
+# # End of User Defined Variables #
+# #################################
+# 
+# 
+# # Get the date the data was taken
+# first_file <- paste(pth,mixedsort(sort(list.files(pth)))[1], sep = "/")
+# data_date <- file.mtime(first_file)  # gets date and time the file was created
+# data_date <- as.character(data_date)
+# data_date <- strsplit(data_date, split = " ")[[1]][1]
+# 
+# # Names of the variables in the data files from the VNA
+# n_ri <- c("Freq_GHz","S11_Real","S11_Img","S21_Real","S21_Img","S12_Real","S12_Img","S22_Real","S22_Img")
+# n_pm <- c("Freq_GHz","S11_dB","S11_Phase_Deg","S21_dB","S21_Phase_Deg","S12_dB","S12_Phase_Deg","S22_dB","S22_Phase_Deg")
+# 
+# # Get the number of data files and their names in order
+# order <- mixedsort(sort(list.files(pth)))
+# 
+# # Subset the data based on the reduction indicator and reduction coutn variables
+# if(reduction_indicator){
+#   order <- order[seq(1, length(order), reduction_count)]
+#   cycs_between_meas <- cycs_between_meas * reduction_count
+# }
+# 
+# num_files <- length(order)
+# 
+# # End of User Defined Variables #
+# #################################
+# 
+
+
+
+
+##########################
+# User defined variables #
+
+
+# Path to where the data is stored
+  # Note: Windows uses "\" in its file names by default and they must be chagned to "/" in the script to function properly
+#pth <- "//pilly/jaguar/interface/project/MX-44/Agoura Hills Data Analysis and Pics/Data and Analysis/Gore/Gore_PA_Bit63/Data/All_Data_Every_10th"
+#pth <- "C:/R_Programs/Nutcracker_Data/Falcon_Pair_1/Test1"
+#pth <- "E:/Teradyne_WFH/Falcon_Cross-Corr_Data/All_Data/Test1"
+#pth <- "//pilly/jaguar/interface/project/MX44e/Pilot Line Issues/s2p"
+
+#pth <- "C:/Gryffindor/Data/Gore Grid Test/"
+#pth <- "//pilly/jaguar/interface/project/Gryffindor/Data_and_Results/Gore_Dual_AC_Beercan_Test/"
+
+#pth <- input$RF1
+pth <- "C:/Users/huntdust/Desktop/KeyenceIntegration_Beercan_5/"
+company <- "Gore"
+
+cable_name <- "Cable 3 - Grid Test"
+
+# Total number of cycles the cable experienced during the collection of this data set
+total_cycles <- 796
+#total_cycles <- df$Cycle[length(df$Cycle)]
+
+# Sets the Number of cycles between measurements; allows use of less data to lower computation time
+cycs_between_meas <- 2
+
+# declare how many cables are included in this data set so that the max phase shift between cables can be correctly calculated
+num_cables <- 1
+
+# # Defines the number of traces included in a "window" for any of the plots that are calculated in that method
+#   # Increasing the size of this variable can drastically increase computation time; do so wisely or with testing
+window_size <- 8
+
+
+# Specify if this data is from a Falcon test and should therefore have the adpater losses subtracted from the results
+is_falcon <- FALSE
+
+
+# Freq to check insertion loss and return loss at to see how it varies over time
+desired_freq_high <- 53
+desired_freq_low  <- 10
+
+
+# Specify if which S11 and S21 specs should be used in the plots
+  # values can be low, mid, high, or mx44
+s11_spec <- "Falcon"
+s21_spec <- "Falcon"
+
+# End of User Defined Variables #
+#################################
+
+# Get the path to the aggregated data files
+normal_pth <- paste(pth, "Aggregated_Data.csv", sep = "")
+smry_pth <- paste(pth, "Summary_Data.csv", sep = "")
+
+# Read in the data
+df <- read.csv(normal_pth)
+smry <- read.csv(smry_pth)
+
+closest_freq_low <- df$Freq_GHz[which(abs(df$Freq_GHz - desired_freq_low) == min(abs(df$Freq_GHz - desired_freq_low)))][1]
+closest_freq_high <- df$Freq_GHz[which(abs(df$Freq_GHz - desired_freq_high) == min(abs(df$Freq_GHz - desired_freq_high)))][1]
+
+
+
+# Create a function to round all numeric columns in a df
+# round_df <- function(df, digits) {
+#   nums <- vapply(df, is.numeric, FUN.VALUE = logical(1))
+#   df[,nums] <- round(df[,nums], digits = digits)
+#   return(df)
+# }
+
+
+```
+
+
+#### Flatness over Modulation Bandwidth for the data set
+
+```{r Flatness over Modulation MSD, echo = FALSE}
+#tic("Time to generate")
+# Specifying the specs here because creating a variable doesn't make much sense
+flatness_low_width  <- 400 # applies to anything below 8 GHz
+flatness_high_width <- 800 # applies to anything above 8 GHz
+variation_spec <- .4
+
+coverage_factor <- 6   ### CHANGE VARIABLE NAME IN PLOT IF CHANGING THIS VALUE
+
+
+
+# Get the necessary data
+df_melt_flatness <- melt(df, id.vars = c("Freq_GHz","Cycle"), measure.vars = c("S21_dB"))
+names(df_melt_flatness) <- c("Frequency", "Cycle", "variable", "Loss")
+
+
+# Create function to be used in lapply
+calc_variation <- function(i, d, start, stop){
+  
+  # Get all data within width_mhz of starting data point
+  temp_df <- d[which(d$Frequency >= start[i] & d$Frequency <= stop[i]),]
+
+  # Get the variation value
+  variation_val <- diff(range(temp_df$Loss))
+  return(variation_val)
+}
+
+
+# Fill the variation object
+temp_df <- c(0)
+for(j in unique(df_melt_flatness$Cycle)){
+  #tic("time for 1 loop with the lapply function")
+
+  # Get 1 cycle of data
+  d <- df_melt_flatness[which(df_melt_flatness$Cycle == j),]
+  
+  # Create the majority of columns needed to fill temp_df
+  Start_freq <- d$Frequency
+  End_freq <- d$Frequency 
+  
+  # Calculate proper end frequency for this window based on the starting frequency
+  End_freq[which(End_freq <= window_size)] <-  End_freq[which(End_freq <= window_size)] + (flatness_low_width / 1000)
+  End_freq[which(End_freq > window_size)]  <-  End_freq[which(End_freq > window_size)]  + (flatness_high_width / 1000)
+  
+  # count the number of windows
+  Window <- seq(1, nrow(d))
+  
+  # Calculate the max variation for each window
+  Variation <- lapply(1:(nrow(d)), calc_variation, d = d, start = Start_freq, stop = End_freq)
+
+  # Convert Variation into just a vector
+  Variation <- unlist(Variation)
+  
+  # Combine all data into one data frame
+  temp_df <- data.frame(Start_freq, End_freq, Window, Variation)
+  
+  # Remove data from any windows with smaller than the max width
+  temp_df <- temp_df[-which(temp_df$Start_freq > (temp_df$Start_freq[nrow(temp_df)] - (flatness_high_width / 1000))),]
+  
+  # Add the cycle variable
+  Cycle <- rep(j, nrow(temp_df))
+  temp_df <- cbind(temp_df, Cycle)
+
+  # Aggregate the data
+  if(j == unique(df_melt_flatness$Cycle)[1]){
+      variation_df <- temp_df
+  } else {
+      variation_df <- rbind(variation_df, temp_df)
+  }  
+  #toc()
+}
+
+fd <- group_by(variation_df, Start_freq) %>%
+  summarise(variation_m_sd = max(Variation) + (coverage_factor * sd(Variation)))
+
+
+names(fd) <- c("Frequency", "Max + 6SD")
+
+
+# Create the labels
+title <- paste("Flatness Over Modulation Bandwidth: Max +", coverage_factor, "sigma", sep = " ")
+ylab <- paste("Max change in S21 over Specified Range")
+
+# Create the plot
+p <- ggplot(data = fd, mapping = aes(x = Frequency, y = `Max + 6SD`)) +
+      geom_line(size = 0.5) +
+      labs(x = "Frequency (GHz)", y = ylab) +
+      ggtitle(title) +
+      scale_color_gradientn(colors = rainbow(5)) +
+      theme_minimal() + # this theme makes the plot very similar to the default plotly aesthetic
+      theme(plot.title = element_text(hjust = 0.5))
+
+
+# Add the spec line
+Spec <- variation_spec
+p <- p + geom_line(aes(y = Spec), color = "red")
+
+# Generate the plot
+p <- ggplotly(p, dynamicTicks = TRUE) %>% layout(xaxis = list(autorange = FALSE))
+p <- config(p, modeBarButtonsToRemove = c("zoomIn2d", "zoomOut2d", "lasso2d", "select2d", "toggleSpikelines","autoScale2d"))
+p
+#toc()
+
+
+
+```
+
+<center> TERADYNE CONFIDENTIAL DO NOT DISTRIBUTE </center>
+
+
+#### Flatness over Modulation Bandwidth By Cycle
+
+```{r Flatness over Modulation By Cycle, echo = FALSE}
+#tic("Time to generate")
+# Specifying the specs here because creating a variable doesn't make much sense
+flatness_low_width  <- 400 # applies to anything below 8 GHz
+flatness_high_width <- 800 # applies to anything above 8 GHz
+variation_spec <- .4
+
+coverage_factor <- 6
+
+
+# Get the necessary data
+df_melt_flatness <- melt(df, id.vars = c("Freq_GHz","Cycle"), measure.vars = c("S21_dB"))
+names(df_melt_flatness) <- c("Frequency", "Cycle", "variable", "Loss")
+
+
+# Create function to be used in lapply
+calc_variation <- function(i, d, start, stop){
+  
+  # Get all data within width_mhz of starting data point
+  temp_df <- d[which(d$Frequency >= start[i] & d$Frequency <= stop[i]),]
+
+  # Get the variation value
+  variation_val <- diff(range(temp_df$Loss))
+  return(variation_val)
+}
+
+
+
+# Fill the variation object
+temp_df <- c(0)
+for(j in unique(df_melt_flatness$Cycle)){
+  #tic("time for 1 loop with the lapply function")
+
+  # Get 1 cycle of data
+  d <- df_melt_flatness[which(df_melt_flatness$Cycle == j),]
+  
+  # Create the majority of columns needed to fill temp_df
+  Start_freq <- d$Frequency
+  End_freq <- d$Frequency 
+  
+  # Calculate proper end frequency for this window based on the starting frequency
+  End_freq[which(End_freq <= 8)] <-  End_freq[which(End_freq <= 8)] + (flatness_low_width / 1000)
+  End_freq[which(End_freq > 8)]  <-  End_freq[which(End_freq > 8)]  + (flatness_high_width / 1000)
+  
+  # count the number of windows
+  Window <- seq(1, nrow(d))
+  
+  # Calculate the max variation for each window
+  Variation <- lapply(1:(nrow(d)), calc_variation, d = d, start = Start_freq, stop = End_freq)
+
+  # Convert Variation into just a vector
+  Variation <- unlist(Variation)
+  
+  # Combine all data into one data frame
+  temp_df <- data.frame(Start_freq, End_freq, Window, Variation)
+  
+  # Remove data from any windows with smaller than the max width
+  temp_df <- temp_df[-which(temp_df$Start_freq > (temp_df$Start_freq[nrow(temp_df)] - (flatness_high_width / 1000))),]
+  
+  # Add the cycle variable
+  Cycle <- rep(j, nrow(temp_df))
+  temp_df <- cbind(temp_df, Cycle)
+
+  # Aggregate the data
+  if(j == unique(df_melt_flatness$Cycle)[1]){
+      variation_df <- temp_df
+  } else {
+      variation_df <- rbind(variation_df, temp_df)
+  }  
+  #toc()
+}
+
+# Rename the data so it looks more formal during mouseover of the plots
+names(variation_df) <- c("Start Frequency", "End Frequency", "Window", "Variation", "Cycle")
+
+
+# Create the labels
+title <- paste("Flatness Over Modulation Bandwidth Per Cycle")
+ylab <- paste("Max change in S21 over Specified Range")
+
+# Create the higilight key
+variation_df <- highlight_key(variation_df, ~Cycle)
+
+
+
+# Create the plot
+p <- ggplot(data = variation_df, mapping = aes(x = `Start Frequency`, y = Variation, color = Cycle)) +
+      geom_line(size = 0.5) +
+      labs(x = "Frequency (GHz)", y = ylab, col = "Cycle") +
+      ggtitle(title) +
+      scale_color_gradientn(colors = rainbow(5)) +
+      theme_minimal() + # this theme makes the plot very similar to the default plotly aesthetic
+      theme(plot.title = element_text(hjust = 0.5))
+
+# Add the spec line
+Spec <- variation_spec
+p <- p + geom_line(aes(y = Spec), color = "red")
+
+
+# Generate the plot
+p <- ggplotly(p, dynamicTicks = TRUE, tooltip = c("Start Frequency", "End Frequency", "Window", "Variation", "Cycle")) %>% layout(xaxis = list(autorange = FALSE))
+p <- config(p, modeBarButtonsToRemove = c("zoomIn2d", "zoomOut2d", "lasso2d", "select2d", "toggleSpikelines","autoScale2d"))
+p <- highlight(p, on = "plotly_click", off = "plotly_doubleclick", color = "black")
+p
+#toc()
+```
+
+<center> TERADYNE CONFIDENTIAL DO NOT DISTRIBUTE </center>
+
+
+#### Maximum Rate of Change Over a Cal Step
+
+```{r Max ROC Over Cal Step MSD, echo = FALSE}
+#tic("Time to generate")
+
+# Specifying the specs here because creating a variable doesn't make much sense
+max_change_width <- 400 # in MHz
+variation_spec <- .2
+
+coverage_factor <- 2
+
+
+# Get the necessary data
+df_melt_max_change <- melt(df, id.vars = c("Freq_GHz","Cycle"), measure.vars = c("S21_dB"))
+names(df_melt_max_change) <- c("Frequency", "Cycle", "variable", "Loss")
+
+
+# Create function to be used in lapply
+calc_max_change <- function(i, d, start, stop){
+  
+  # Get all data within width_mhz of starting data point
+  temp_df <- d[which(d$Frequency >= start[i] & d$Frequency <= stop[i]),]
+
+  # Get the variation value
+  variation_val <- diff(range(temp_df$Loss))
+  return(variation_val)
+}
+
+
+# Fill the max_change object
+temp_df <- c(0)
+for(j in unique(df_melt_max_change$Cycle)){
+
+  # Get 1 cycle of data
+  d <- df_melt_max_change[which(df_melt_max_change$Cycle == j),]
+  
+  # Create the majority of columns needed to fill temp_df
+  Start_freq <- d$Frequency
+  End_freq <- d$Frequency  + (max_change_width / 1000)
+  Window <- seq(1, nrow(d))
+
+  # Calculate the max variation for each window
+  Variation <- lapply(1:(nrow(d)), calc_max_change, d = d, start = Start_freq, stop = End_freq)
+
+  # Convert Variation into just a vector
+  Variation <- unlist(Variation)
+  
+  # Combine all data into one data frame
+  temp_df <- data.frame(Start_freq, End_freq, Window, Variation)
+  
+  # Remove data from any windows with smaller than the max width
+  temp_df <- temp_df[-which(temp_df$Start_freq > (temp_df$Start_freq[nrow(temp_df)] - (max_change_width / 1000))),]
+  
+  # Add the cycle variable
+  Cycle <- rep(j, nrow(temp_df))
+  temp_df <- cbind(temp_df, Cycle)
+
+  # Aggregate the data
+  if(j == unique(df_melt_max_change$Cycle)[1]){
+      max_change_df <- temp_df
+  } else {
+      max_change_df <- rbind(max_change_df, temp_df)
+  }  
+
+}
+
+# Calculate the final values used in the plot... mean + coverage factor * SD
+fd <- group_by(max_change_df, Start_freq) %>%
+  summarise(variation_m_sd = mean(Variation) + (coverage_factor * sd(Variation)))
+
+# Name the data
+names(fd) <- c("Frequency", "Mean + 2SD")
+
+# Round the data
+#fd <- round_df(fd, 8)
+
+
+# Create the labels
+title <- paste("Maximum Mean + ", coverage_factor, "SD ROC Over Cal Frequency Step: Step Size is ", max_change_width, "MHz", sep = "")
+ylab <- paste("Max Change in S21 over A Calibration Step (", max_change_width, "MHz)", sep = "")
+
+# Create the plot
+p <- ggplot(data = fd, mapping = aes(x = Frequency, y = `Mean + 2SD`)) +
+      geom_line(size = 0.5) +
+      labs(x = "Frequency (GHz)", y = ylab) +
+      ggtitle(title) +
+      scale_color_gradientn(colors = rainbow(5)) +
+      theme_minimal() + # this theme makes the plot very similar to the default plotly aesthetic
+      theme(plot.title = element_text(hjust = 0.5))
+
+# Add the spec line
+Spec <- variation_spec
+p <- p + geom_line(aes(y = Spec), color = "red")
+
+# Generate the plot
+p <- ggplotly(p, dynamicTicks = TRUE) %>% layout(xaxis = list(autorange = FALSE))
+p <- config(p, modeBarButtonsToRemove = c("zoomIn2d", "zoomOut2d", "lasso2d", "select2d", "toggleSpikelines","autoScale2d"))
+p
+#toc()
+```
+
+<center> TERADYNE CONFIDENTIAL DO NOT DISTRIBUTE </center>
+
+
+
+```{r Max ROC Over Cal Step By Cycle, echo = FALSE}
+# Do not generate this plot unless the data is fine-grained enough to create a meaningful plot
+step_size <- df$Freq_GHz[2] - df$Freq_GHz[1]
+
+if(step_size <= .002){
+  #tic("Time to generate")
+
+  # Specifying the specs here because creating a variable doesn't make much sense
+  max_change_width <- 20 
+  variation_spec <- .2
+  
+  coverage_factor <- 2
+  
+  
+  # Get the necessary data
+  df_melt_max_change <- melt(df, id.vars = c("Freq_GHz","Cycle"), measure.vars = c("S21_dB"))
+  names(df_melt_max_change) <- c("Frequency", "Cycle", "variable", "Loss")
+  
+  
+  # Create function to be used in lapply
+  calc_max_change <- function(i, d, start, stop){
+    
+    # Get all data within width_mhz of starting data point
+    temp_df <- d[which(d$Frequency >= start[i] & d$Frequency <= stop[i]),]
+  
+    # Get the variation value
+    variation_val <- diff(range(temp_df$Loss))
+    return(variation_val)
+  }
+  
+  
+  # Fill the max_change object
+  temp_df <- c(0)
+  for(j in unique(df_melt_max_change$Cycle)){
+  
+    # Get 1 cycle of data
+    d <- df_melt_max_change[which(df_melt_max_change$Cycle == j),]
+    
+    # Create the majority of columns needed to fill temp_df
+    Start_freq <- d$Frequency
+    End_freq <- d$Frequency  + (max_change_width / 1000)
+    Window <- seq(1, nrow(d))
+  
+    # Calculate the max variation for each window
+    Variation <- lapply(1:(nrow(d)), calc_max_change, d = d, start = Start_freq, stop = End_freq)
+  
+    # Convert Variation into just a vector
+    Variation <- unlist(Variation)
+    
+    # Combine all data into one data frame
+    temp_df <- data.frame(Start_freq, End_freq, Window, Variation)
+    
+    # Remove data from any windows with smaller than the max width
+    temp_df <- temp_df[-which(temp_df$Start_freq > (temp_df$Start_freq[nrow(temp_df)] - (max_change_width / 1000))),]
+    
+    # Add the cycle variable
+    Cycle <- rep(j, nrow(temp_df))
+    temp_df <- cbind(temp_df, Cycle)
+  
+    # Aggregate the data
+    if(j == unique(df_melt_max_change$Cycle)[1]){
+        max_change_df <- temp_df
+    } else {
+        max_change_df <- rbind(max_change_df, temp_df)
+    }  
+  }
+  
+  
+  # Rename the data so it looks more formal during mouseover of the plots
+  names(variation_df) <- c("Start Frequency", "End Frequency", "Window", "Variation", "Cycle")
+  
+  
+  # Create the labels
+  title <- paste("Maximum ROC Per Cycle Over Cal Frequency Step: Step Size is ", max_change_width, "MHz", sep = "")
+  ylab <- paste("Max Change in S21 over A Calibration Step (", max_change_width, "MHz)", sep = "")
+  
+  # Create the plot
+  p <- ggplot(data = max_change_df, mapping = aes(x = `Start Frequency`, y = Variation, color = Cycle)) +
+        geom_line(size = 0.5) +
+        labs(x = "Frequency (GHz)", y = ylab, col = "Cycle") +
+        ggtitle(title) +
+        scale_color_gradientn(colors = rainbow(5)) +
+        theme_minimal() + # this theme makes the plot very similar to the default plotly aesthetic
+        theme(plot.title = element_text(hjust = 0.5))
+  
+  # Add the spec line
+  Spec <- variation_spec
+  p <- p + geom_line(aes(y = Spec), color = "red")
+  
+  # Generate the plot
+  p <- ggplotly(p, dynamicTicks = TRUE) %>% layout(xaxis = list(autorange = FALSE))
+  p <- config(p, modeBarButtonsToRemove = c("zoomIn2d", "zoomOut2d", "lasso2d", "select2d", "toggleSpikelines","autoScale2d"))
+  p
+  #toc()
+}
+
+```
+
+<center> TERADYNE CONFIDENTIAL DO NOT DISTRIBUTE </center>
+
+
+#### Max S11 Shift in the Complex Plane
+
+```{r Max S11 Shift In Complex Plane single cable, echo=FALSE, warning=FALSE}
+
+# How this is calculated:
+#   Get S11(m) and S11(n)
+#   subtract one from the other
+#   record the max difference at its singular frequency(single point)
+#   increment n and repeat until n is the final trace
+#   increment m, set n to m+1 and repeat ablove steps until m = total number of traces
+#   find stdev of all the recorded max diff values
+#   multiply by 3 and check if it is within spec
+# 
+# OR
+# 
+#   Get S11(m) and S11(n)
+#   subtract one from the other and take absoulute value
+#   save the difference trace
+#   repeat for all m & n combos within the desired window
+#   compute stdev of values at each frequency for all difference traces
+#   shift window and repeat
+#   
+#   probably need to make a 3d plot for this one 
+#   
+
+if(num_cables == 1){
+  #tic("Create max s11 shift plot")
+  
+  # Coverage factor dentoes the spec coverage variable in colin's sjeet
+  coverage_factor <- 3
+  
+  # Get the necessary data
+  df_melt_max_S11_shift <- melt(df, id.vars = c("Freq_GHz","Cycle","meas"), measure.vars = c("S11_dB"))
+  names(df_melt_max_S11_shift) <- c("Frequency", "Cycle", "meas", "variable", "Return_Loss")
+  
+  # Convert Return_Loss to linear so it is compared to the specs properly
+    # converts return loss from dB to linear
+  df_melt_max_S11_shift$Return_Loss <- 10^(df_melt_max_S11_shift$Return_Loss/20)
+  
+  # Create the object to hold the actual variation measurements
+  max_S11_shift_df <- data.frame("Trace_num" = double(),"Frequency" = double(),"First_Cycle" = double(),"Second_Cycle" = double(),"Max_Change" = double())
+  temp_df <- data.frame("Trace_num" = double(),"Frequency" = double(),"First_Cycle" = double(),"Second_Cycle" = double(),"Max_Change" = double())
+  
+  # Begin calculation
+  for(i in unique(df_melt_max_S11_shift$meas)){
+    
+    # Get the first trace; trace "m" in colins notes
+    trace1 <- df_melt_max_S11_shift[which(df_melt_max_S11_shift$meas == i),]
+    
+    # This code is correct if not using a windowed approach
+    ###### 
+    #Itterate through all the other traces, compute differences and SD
+    #for(j in (i + 1):max(df_melt_max_S11_shift$Cycle)){
+    #}
+    ######
+    
+    
+    
+    # find the correct value for the final cycle number
+    if((i - 1 + window_size) >= max(df_melt_max_S11_shift$meas)){ end_cycle = i } else { end_cycle = (i - 1 + window_size) }
+    
+    # Get the second trace, compute difference, and fill the data frame
+    for(j in (i + 1):end_cycle){
+      
+      # this makes sure that i + 1 does not exceed the end_cycle
+      if((i + window_size) > max(df_melt_max_S11_shift$meas)){break}
+      
+      #print(paste("i:", i, "j:", j))
+      
+      # Get the second trace; trace "n" in colins notes
+      trace2 <- df_melt_max_S11_shift[which(df_melt_max_S11_shift$meas == j),]
+  
+      # Subtrace trace 2 from trace 1
+      difference <- abs(trace1$Return_Loss - trace2$Return_Loss)
+      
+      # Fill temp_df
+      temp_df <- data.frame("Trace_num" = rep(i*j - 1, length(difference)), "Frequency" = trace1$Frequency, "First_Cycle" = rep(i, length(difference)),"Second_Cycle" = rep(j, length(difference)), "Max_Change" = difference)
+      
+      # Fill max_shift_S11_df
+      if(i*j - 1 == 1){
+        max_S11_shift_df <- temp_df
+      } else {
+        max_S11_shift_df <- rbind(max_S11_shift_df, temp_df)
+      }
+      
+      
+    }
+    
+    # Get the data from the current window
+    window_temp_df <- max_S11_shift_df[which(max_S11_shift_df$First_Cycle == i),]
+    
+    # Calculate the sd over the current window
+    window_temp_df <- group_by(window_temp_df,`Frequency`) %>% 
+      summarise(max_s11_shift_sd = sd(Max_Change), window_num = i)
+    
+    
+    # Fill window_df; df that holds all the final calculated sd values for each window
+      if(i == 1){
+        window_df <- window_temp_df
+      } else {
+        window_df <- rbind(window_df, window_temp_df)
+      }
+      
+    # Convert the Max_Change from dB to linear
+    window_df$max_s11_shift_sd <- window_df$max_s11_shift_sd
+  
+  }
+  
+  
+  
+  
+  ### Max shift of S11 or S22 in the complex plane; specified in colins document
+  window_df <- window_df %>% mutate(max_S11_shift = ifelse(`Frequency` <= 3, -48,
+                                                    ifelse(`Frequency` > 3 & `Frequency` <= 6, -46,
+                                                    ifelse(`Frequency` > 6 & `Frequency` <= 8, -45,
+                                                    ifelse(`Frequency` > 8 & `Frequency` <= 54.2, -42,
+                                                    ifelse(`Frequency` > 54.2 & `Frequency` <= 90,-40, NA))))))
+  
+  # Convert the dB to decimal
+  window_df$max_S11_shift <-  10^(window_df$max_S11_shift/20)
+  
+  # Incorporate the coverage factor into the data by multiplying the SD by the coverage_factor
+  window_df$max_s11_shift_sd <- window_df$max_s11_shift_sd * coverage_factor
+  
+  # Rename the data
+  names(window_df) <- c("Frequency","Standard Deviation", "Window", "Spec")
+  
+  # Create the highlight key
+  window_df <- highlight_key(window_df, ~Window)
+  
+  # Round the data frame
+  #window_df <- round_df(window_df, 8)
+  
+  # Create the labels
+  #title <- paste("Maximum Rate of Change Over a Calibration Frequency Step: Cal Step Size is ", max_change["width_mhz"], "MHz", sep = "")
+  title <- paste("Maximum Shift of S11 in the Complex Plane (+3 Sigma)")
+  ylab <- paste("Max Change in S11 between two cycles")
+  
+  # Create the plot
+  p <- ggplot(data = window_df, mapping = aes(x = Frequency, y = `Standard Deviation`, color = Window)) +
+        geom_line(size = 0.5) +
+        labs(x = "Frequency (GHz)", y = ylab, col = "Window") +
+        ggtitle(title) +
+        scale_color_gradientn(colors = rainbow(5)) +
+        theme_minimal() + # this theme makes the plot very similar to the default plotly aesthetic
+        theme(plot.title = element_text(hjust = 0.5))
+  
+  
+  # Add specs to the plot if desired
+  p <- p + geom_line(aes(y = Spec), color = "red")
+  
+  
+  # Generate the plot
+  p <- ggplotly(p, dynamicTicks = TRUE, tooltip = c("Frequency", "Standard Deviation", "Window")) %>% layout(xaxis = list(autorange = FALSE))
+  p <- config(p, modeBarButtonsToRemove = c("zoomIn2d", "zoomOut2d", "lasso2d", "select2d", "toggleSpikelines","autoScale2d"))
+  p <- highlight(p, on = "plotly_click", off = "plotly_doubleclick", color = "black")
+  p
+  #toc()
+}
+```
+
+```{r Max S11 Shift In Complex Plane multiple cables, echo = FALSE, warning = FALSE}
+
+# How this is calculated:
+#   Get S11(m) and S11(n)
+#   subtract one from the other
+#   record the max difference at its singular frequency(single point)
+#   increment n and repeat until n is the final trace
+#   increment m, set n to m+1 and repeat ablove steps until m = total number of traces
+#   find stdev of all the recorded max diff values
+#   multiply by 3 and check if it is within spec
+# 
+# OR
+# 
+#   Get S11(m) and S11(n)
+#   subtract one from the other and take absoulute value
+#   save the difference trace
+#   repeat for all m & n combos within the desired window
+#   compute stdev of values at each frequency for all difference traces
+#   shift window and repeat
+#   
+#   probably need to make a 3d plot for this one 
+#   
+
+if(num_cables > 1){
+  #tic("Create max s11 shift plot")
+  
+  # Coverage factor dentoes the spec coverage variable in colin's sjeet
+  coverage_factor <- 3
+  
+  # Get the necessary data
+  df_melt_max_S11_shift <- melt(df, id.vars = c("Freq_GHz","Cycle","meas"), measure.vars = c("S11_dB"))
+  names(df_melt_max_S11_shift) <- c("Frequency", "Cycle", "meas", "variable", "Return_Loss")
+  
+  # Convert Return_Loss to linear so it is compared to the specs properly
+    # converts return loss from dB to linear
+  df_melt_max_S11_shift$Return_Loss <- 10^(df_melt_max_S11_shift$Return_Loss/20)
+  
+  # Create the object to hold the actual variation measurements
+  max_S11_shift_df <- data.frame("Trace_num" = double(),"Frequency" = double(),"First_Cycle" = double(),"Second_Cycle" = double(),"Max_Change" = double())
+  temp_df <- data.frame("Trace_num" = double(),"Frequency" = double(),"First_Cycle" = double(),"Second_Cycle" = double(),"Max_Change" = double())
+  
+  # Begin calculation
+  for(i in unique(df_melt_max_S11_shift$meas)){
+   
+    # Get the first trace; trace "m" in colins notes
+    trace1 <- df_melt_max_S11_shift[which(df_melt_max_S11_shift$meas == i),]
+    
+    # This code is correct if not using a windowed approach
+    ###### 
+    #Itterate through all the other traces, compute differences and SD
+    #for(j in (i + 1):max(df_melt_max_S11_shift$Cycle)){
+    #}
+    ######
+    
+    
+    
+    # find the correct value for the final cycle number
+    if((i - 1 + window_size) >= (max(df_melt_max_S11_shift$meas) + 1)){ end_cycle = i } else { end_cycle = (i - 1 + window_size) }
+
+    
+    # Get the second trace, compute difference, and fill the data frame
+    for(j in (i + 1):end_cycle){
+      
+      # this makes sure that i + 1 does not exceed the end_cycle
+      if((i + window_size) > (max(df_melt_max_S11_shift$meas) + 1)){break}
+      
+      #print(paste("i:", i, "j:", j))
+      
+      # Get the second trace; trace "n" in colins notes
+      trace2 <- df_melt_max_S11_shift[which(df_melt_max_S11_shift$meas == j),]
+  
+      # Subtrace trace 2 from trace 1
+      difference <- abs(trace1$Return_Loss - trace2$Return_Loss)
+      
+      # Fill temp_df
+      temp_df <- data.frame("Trace_num" = rep(i*j - 1, length(difference)), "Frequency" = trace1$Frequency, "First_Cycle" = rep(i, length(difference)),"Second_Cycle" = rep(j, length(difference)), "Max_Change" = difference)
+      
+      # Fill max_shift_S11_df
+      if(i*j - 1 == 1){
+        max_S11_shift_df <- temp_df
+      } else {
+        max_S11_shift_df <- rbind(max_S11_shift_df, temp_df)
+      }
+      
+    }
+    
+    # Get the data from the current window
+    window_temp_df <- max_S11_shift_df[which(max_S11_shift_df$First_Cycle == i),]
+    
+    # Calculate the sd over the current window
+    window_temp_df <- group_by(window_temp_df,`Frequency`) %>% 
+      summarise(max_s11_shift_sd = sd(Max_Change), window_num = i)
+    
+    
+    # Fill window_df; df that holds all the final calculated sd values for each window
+    if(i == 1){
+      window_df <- window_temp_df
+    } else {
+      window_df <- rbind(window_df, window_temp_df)
+    }
+      
+    # Convert the Max_Change from dB to linear
+    window_df$max_s11_shift_sd <- window_df$max_s11_shift_sd
+  
+  }
+  
+  
+  
+  ### Max shift of S11 or S22 in the complex plane; specified in colins document
+  window_df <- window_df %>% mutate(max_S11_shift = ifelse(`Frequency` <= 3, -48,
+                                                    ifelse(`Frequency` > 3 & `Frequency` <= 6, -46,
+                                                    ifelse(`Frequency` > 6 & `Frequency` <= 8, -45,
+                                                    ifelse(`Frequency` > 8 & `Frequency` <= 54.2, -42,
+                                                    ifelse(`Frequency` > 54.2 & `Frequency` <= 90,-40, NA))))))
+
+  # Convert the dB to decimal
+  window_df$max_S11_shift <-  10^(window_df$max_S11_shift/20)
+  
+  # Incorporate the coverage factor into the data by multiplying the SD by the coverage_factor
+  window_df$max_s11_shift_sd <- window_df$max_s11_shift_sd * coverage_factor
+  
+  # Rename the data
+  names(window_df) <- c("Frequency","Standard Deviation", "Window", "Spec")
+  
+  
+  
+  
+  
+  ######### Removing windows with data from multiuple cables ########
+  
+  # Traces that are generated with data from multiple cabels are not valid because cable-to-cable variation is not expected 
+  # to be on par with variation of a single cable with itself. We need to remove the traces that were calculated with 
+  # data from multiple cables. This is done by identifying which windows start within window_size cycles of the total number of 
+  # measurements per cable, which means that the window extends past the end of the data for 1 cable and should be removed. 
+  
+  
+  # Calculate the total cycles per cable
+  cycs_per_cable <- total_cycles / num_cables
+  
+  
+  # Calculate the window numbers to remove
+  windows_to_remove <- c()
+  for(i in 1:length(unique(window_df$Window))){
+    
+    # When i == the number of cycles per cable the modulus equation would omit it from the list of cycles to remove; we want to make sure it is included
+    if(i %% cycs_per_cable == 0){
+      cycle_location <- i
+    }else{
+      cycle_location <- i %% cycs_per_cable
+    }
+    
+
+    # Make sure the data is overlapping, and indicate if it should be removed
+    if(cycle_location + window_size > cycs_per_cable + 1){
+      windows_to_remove <- append(windows_to_remove, i)
+    } 
+  }
+
+
+  # Copy the window df to the new df we are going to use
+  new_window_df <- window_df
+  
+  # Remove the needed data
+  for(i in 1:length(windows_to_remove)){
+    new_window_df <- new_window_df[-which(new_window_df$Window == windows_to_remove[i]),]
+  }
+  
+  
+  # Create a variable to hold the cable number so a min and max trace can be calculated for each seperate cable
+  cable_number <- as.integer(new_window_df$Window / cycs_per_cable) + 1
+  new_window_df <- cbind(new_window_df, cable_number)
+  
+  
+  # Create a unique window variable for better display of the data in the final plot
+  unique_window <- c()
+  for(i in 1:length(unique(new_window_df$Window))){
+    temp <- rep(i, length(unique(new_window_df$Frequency)))
+    unique_window <- c(unique_window,temp)
+  }
+  
+  # Bind the Unique Window variable to the df
+  new_window_df <- cbind(new_window_df, unique_window)
+  
+  
+  # Change the window numbers so it restarts at 1 once the cable number changes
+  new_window_value <-c()
+  for(j in 1:length(unique(new_window_df$cable_number))){  
+    for(i in 1:(cycs_per_cable - window_size + 1)){
+        temp <- rep(i, length(unique(new_window_df$Frequency)))
+        new_window_value <- c(new_window_value, temp)
+    }
+  }
+  
+  
+  # Replace the old window values with the new ones
+    # Old values had gaps where the deleted traces were
+  new_window_df$Window <- new_window_value
+  
+  
+  # Make sure data is represented as a data frame and rename it
+  new_window_df <- as.data.frame(new_window_df)
+  names(new_window_df) <- c("Frequency","Maximum Shift", "Window", "Spec", "Cable Number", "Unique Window")
+
+
+  # Create the labels
+  title <- paste("Maximum Shift of S11 in the Complex Plane")
+  ylab <- paste("Max Change in S11 between two cycles")
+  
+  
+  # Create the plot
+  p <- ggplot(data = new_window_df, mapping = aes(x =  Frequency)) +
+        geom_line(aes(y = `Maximum Shift`, color = `Unique Window`, text = paste("Cable", cable_number, "Window", Window, sep = " "))) +
+        labs(x = "Frequency (GHz)", y = ylab, col = "Unique Window") +
+        ggtitle(title) +
+        scale_color_gradientn(colors = rainbow(5)) +
+        theme_minimal() + # this theme makes the plot very similar to the default plotly aesthetic
+        theme(plot.title = element_text(hjust = 0.5))
+  
+  
+  # Add specs to the plot if desired
+  p <- p + geom_line(aes(y = Spec), color = "red")
+  
+  
+  # Generate the plot
+  p <- ggplotly(p, dynamicTicks = TRUE) %>% layout(xaxis = list(autorange = FALSE))
+  p <- config(p, modeBarButtonsToRemove = c("zoomIn2d", "zoomOut2d", "lasso2d", "select2d", "toggleSpikelines","autoScale2d"))
+  p
+  #toc()
+}
+```
+
+<center> TERADYNE CONFIDENTIAL DO NOT DISTRIBUTE </center>
+
+
+
+#### Max S21 Shift in the Complex Plane
+
+```{r Max s21 Shift In Magnitude single cable, echo = FALSE, warning = FALSE}
+
+# How this is calculated:
+#   Get s21(m) and s21(n)
+#   subtract one from the other
+#   record the max difference at its singular frequency(single point)
+#   increment n and repeat until n is the final trace
+#   increment m, set n to m+1 and repeat ablove steps until m = total number of traces
+#   find stdev of all the recorded max diff values
+#   multiply by 3 and check if it is within spec
+# 
+# OR
+# 
+#   Get s21(m) and s21(n)
+#   subtract one from the other and take absoulute value
+#   save the difference trace
+#   repeat for all m & n combos within the desired window
+#   compute stdev of values at each frequency for all difference traces
+#   shift window and repeat
+#   
+#   probably need to make a 3d plot for this one 
+#   
+
+
+if(num_cables == 1){
+  
+  #tic("Create max s21 shift plot")
+  
+  # Coverage Factor - defined in colins sheet
+  coverage_factor <- 3
+  
+  # Get the necessary data
+  df_melt_max_s21_shift <- melt(df, id.vars = c("Freq_GHz","Cycle", "meas"), measure.vars = c("S21_dB"))
+  names(df_melt_max_s21_shift) <- c("Frequency", "Cycle", "meas", "variable", "Insertion_Loss")
+  
+  # Convert Return_Loss to linear so it is compared to the specs properly
+  #df_melt_max_s21_shift$Return_Loss <- 10^(df_melt_max_s21_shift$Insertion_Loss/20)
+  
+  # Create the object to hold the actual variation measurements
+  max_s21_shift_df <- data.frame("Trace_num" = double(),"Frequency" = double(),"First_Cycle" = double(),"Second_Cycle" = double(),"Max_Change" = double())
+  temp_df <- data.frame("Trace_num" = double(),"Frequency" = double(),"First_Cycle" = double(),"Second_Cycle" = double(),"Max_Change" = double())
+  
+  # Begin calculation
+  for(i in 1:max(df_melt_max_s21_shift$meas)){
+    
+    # Get the first trace; trace "m" in colins notes
+    trace1 <- df_melt_max_s21_shift[which(df_melt_max_s21_shift$meas == i),]
+    
+    # This code is correct if not using a windowed approach
+    ###### 
+    #Itterate through all the other traces, compute differences and SD
+    #for(j in (i + 1):max(df_melt_max_s21_shift$Cycle)){
+    #}
+    ######
+  
+    
+    # find the correct value for the final cycle number of this window
+    if((i - 1 + window_size) >= max(df_melt_max_s21_shift$meas)){ end_cycle = i } else { end_cycle = (i - 1 + window_size) }
+    
+    # Get the second trace, compute difference, and fill the data frame
+    for(j in (i + 1):end_cycle){
+      
+      # this makes sure that i + 1 does not exceed the end_cycle
+      if((i + window_size) > max(df_melt_max_s21_shift$meas)){break}
+      
+      #print(paste("i:", i, "j:", j))
+      
+      # Get the second trace; trace "n" in colins notes
+      trace2 <- df_melt_max_s21_shift[which(df_melt_max_s21_shift$meas == j),]
+  
+      # Subtrace trace 2 from trace 1
+      difference <- abs(trace1$Insertion_Loss - trace2$Insertion_Loss)
+      
+      # Fill temp_df
+      temp_df <- data.frame("Trace_num" = rep(i*j - 1, length(difference)), "Frequency" = trace1$Frequency, "First_Cycle" = rep(i, length(difference)),"Second_Cycle" = rep(j, length(difference)), "Max_Change" = difference)
+      
+      # Fill max_shift_s21_df
+      if(i*j - 1 == 1){
+        max_s21_shift_df <- temp_df
+      } else {
+        max_s21_shift_df <- rbind(max_s21_shift_df, temp_df)
+      }
+      
+      
+    }
+    
+    # Get the data from the current window
+    window_temp_df <- max_s21_shift_df[which(max_s21_shift_df$First_Cycle == i),]
+    
+    # Calculate the sd over the current window
+    window_temp_df <- group_by(window_temp_df,`Frequency`) %>% 
+      summarise(max_s21_shift_sd = sd(Max_Change), window_num = i)
+    
+    
+    # Fill window_df; df that holds all the final calculated sd values for each window
+      if(i == 1){
+        window_df <- window_temp_df
+      } else {
+        window_df <- rbind(window_df, window_temp_df)
+      }
+      
+    # Convert the Max_Change from dB to linear
+    window_df$max_s21_shift_sd <- window_df$max_s21_shift_sd
+  
+  }
+  
+  
+  
+  
+  ### Max shift of s21 or S22 in the complex plane; specified in colins document
+  window_df <- window_df %>% mutate(max_s21_shift = ifelse(`Frequency` <= 3, 0.03,
+                                                    ifelse(`Frequency` > 3 & `Frequency`  <= 6,  0.046,
+                                                    ifelse(`Frequency` > 6 & `Frequency`  <= 8,  0.052,
+                                                    ifelse(`Frequency` > 8 & `Frequency`  <= 12, 0.1,
+                                                    ifelse(`Frequency` > 12 & `Frequency` <= 24, 0.2,
+                                                    ifelse(`Frequency` > 24 & `Frequency` <= 54.2, 0.35,
+                                                    ifelse(`Frequency` > 54.2 & `Frequency` <= 90, 0.5, NA))))))))
+  
+  
+  # Incorporate the coverage factor into the data by multiplying the SD by the coverage_factor
+  window_df$max_s21_shift_sd <- window_df$max_s21_shift_sd * coverage_factor
+  
+  # Rename the data
+  names(window_df) <- c("Frequency","Maximum Shift", "Window", "Spec")
+  
+  # Round the measurements
+  window_df$`Maximum Shift` <- round(window_df$`Maximum Shift`,8)
+  
+  # Create highlight key
+  window_df <- highlight_key(window_df, ~Window)
+
+  # Create the labels
+  #title <- paste("Maximum Rate of Change Over a Calibration Frequency Step: Cal Step Size is ", max_change["width_mhz"], "MHz", sep = "")
+  title <- paste("Maximum S21 Magnitude Shift (+3 sigma)")
+  ylab <- paste("Max Change in S21 Between Two Cycles")
+  
+  # Create the plot
+  p <- ggplot(data = window_df, mapping = aes(x = Frequency, y = `Maximum Shift`, color = Window)) +
+        geom_line(size = 0.5) +
+        labs(x = "Frequency (GHz)", y = ylab, col = "Window") +
+        ggtitle(title) +
+        scale_color_gradientn(colors = rainbow(5)) +
+        theme_minimal() + # this theme makes the plot very similar to the default plotly aesthetic
+        theme(plot.title = element_text(hjust = 0.5))
+  
+  
+  # Add specs to the plot if desired
+  p <- p + geom_line(aes(y = Spec), color = "red")
+  
+  
+  # Generate the plot
+  p <- ggplotly(p, dynamicTicks = TRUE, tooltip = c("Frequency", "Maximum Shift", "Window")) %>% layout(xaxis = list(autorange = FALSE))
+  p <- config(p, modeBarButtonsToRemove = c("zoomIn2d", "zoomOut2d", "lasso2d", "select2d", "toggleSpikelines","autoScale2d"))
+  p <- highlight(p, on = "plotly_click", off = "plotly_doubleclick", color = "black")
+  p
+  #toc()
+}
+```
+
+```{r Max s21 Shift In Magnitude multiple cables, echo = FALSE, warning = FALSE}
+
+# How this is calculated:
+#   Get s21(m) and s21(n)
+#   subtract one from the other
+#   record the max difference at its singular frequency(single point)
+#   increment n and repeat until n is the final trace
+#   increment m, set n to m+1 and repeat ablove steps until m = total number of traces
+#   find stdev of all the recorded max diff values
+#   multiply by 3 and check if it is within spec
+# 
+# OR
+# 
+#   Get s21(m) and s21(n)
+#   subtract one from the other and take absoulute value
+#   save the difference trace
+#   repeat for all m & n combos within the desired window (window size is 8)
+#   compute stdev of values at each frequency for all difference traces
+#   shift window and repeat
+#   
+#   probably need to make a 3d plot for this one 
+#   
+
+if(num_cables > 1){
+  
+  #tic("Create max s21 shift plot")
+  
+  # Coverage Factor - defined in colins sheet
+  coverage_factor <- 3
+  
+  # Get the necessary data
+  df_melt_max_s21_shift <- melt(df, id.vars = c("Freq_GHz","Cycle", "meas"), measure.vars = c("S21_dB"))
+  names(df_melt_max_s21_shift) <- c("Frequency", "Cycle", "meas", "variable", "Insertion_Loss")
+  
+  # Convert Return_Loss to linear so it is compared to the specs properly
+  #df_melt_max_s21_shift$Return_Loss <- 10^(df_melt_max_s21_shift$Insertion_Loss/20)
+  
+  # Create the object to hold the actual variation measurements
+  max_s21_shift_df <- data.frame("Trace_num" = double(),"Frequency" = double(),"First_Cycle" = double(),"Second_Cycle" = double(),"Max_Change" = double())
+  temp_df <- data.frame("Trace_num" = double(),"Frequency" = double(),"First_Cycle" = double(),"Second_Cycle" = double(),"Max_Change" = double())
+  
+  
+  # Begin calculation
+  for(i in 1:max(df_melt_max_s21_shift$meas)){
+    
+    # Get the first trace; trace "m" in colins notes
+    trace1 <- df_melt_max_s21_shift[which(df_melt_max_s21_shift$meas == i),]
+  
+    
+    # find the correct value for the final cycle number of this window
+    if((i - 1 + window_size) >= (max(df_melt_max_s21_shift$meas) + 1)){ end_cycle = i } else { end_cycle = (i - 1 + window_size) }
+    
+    # Get the second trace, compute difference, and fill the data frame
+    for(j in (i + 1):end_cycle){
+      
+      # this makes sure that i + 1 does not exceed the end_cycle
+      if((i + window_size) > (max(df_melt_max_s21_shift$meas) + 1)){break}
+      
+      #print(paste("i:", i, "j:", j))
+      
+      # Get the second trace; trace "n" in colins notes
+      trace2 <- df_melt_max_s21_shift[which(df_melt_max_s21_shift$meas == j),]
+  
+      # Subtrace trace 2 from trace 1
+      difference <- abs(trace1$Insertion_Loss - trace2$Insertion_Loss)
+      
+      # Fill temp_df
+      temp_df <- data.frame("Trace_num" = rep(i*j - 1, length(difference)), "Frequency" = trace1$Frequency, "First_Cycle" = rep(i, length(difference)),"Second_Cycle" = rep(j, length(difference)), "Max_Change" = difference)
+      
+      # Fill max_shift_s21_df
+      if(i*j - 1 == 1){
+        max_s21_shift_df <- temp_df
+      } else {
+        max_s21_shift_df <- rbind(max_s21_shift_df, temp_df)
+      }
+      
+      
+    }
+    
+    # Get the data from the current window
+    window_temp_df <- max_s21_shift_df[which(max_s21_shift_df$First_Cycle == i),]
+    
+    # Calculate the sd over the current window
+    window_temp_df <- group_by(window_temp_df,`Frequency`) %>% 
+      summarise(max_s21_shift_sd = sd(Max_Change), window_num = i)
+    
+    
+    # Fill window_df; df that holds all the final calculated sd values for each window
+      if(i == 1){
+        window_df <- window_temp_df
+      } else {
+        window_df <- rbind(window_df, window_temp_df)
+      }
+      
+    # Convert the Max_Change from dB to linear
+    window_df$max_s21_shift_sd <- window_df$max_s21_shift_sd
+  
+  }
+  
+  
+  ### Max shift of s21 or S22 in the complex plane; specified in colins document
+  window_df <- window_df %>% mutate(max_s21_shift = ifelse(`Frequency` <= 3, 0.03,
+                                                    ifelse(`Frequency` > 3 & `Frequency`  <= 6,  0.046,
+                                                    ifelse(`Frequency` > 6 & `Frequency`  <= 8,  0.052,
+                                                    ifelse(`Frequency` > 8 & `Frequency`  <= 12, 0.1,
+                                                    ifelse(`Frequency` > 12 & `Frequency` <= 24, 0.2,
+                                                    ifelse(`Frequency` > 24 & `Frequency` <= 54.2, 0.35,
+                                                    ifelse(`Frequency` > 54.2 & `Frequency` <= 90, 0.5, NA))))))))
+  
+  
+  # Incorporate the coverage factor into the data by multiplying the SD by the coverage_factor
+  window_df$max_s21_shift_sd <- window_df$max_s21_shift_sd * coverage_factor
+  
+  # Rename the data
+  names(window_df) <- c("Frequency","Maximum Shift", "Window", "Spec")
+  
+  
+  # Calculate the number of cycles per cable
+  cycs_per_cable <- total_cycles / num_cables
+  
+  
+  # Calculate the window numbers to remove
+  windows_to_remove <- c()
+  for(i in 1:length(unique(window_df$Window))){
+    
+    # When i == the number of cycles per cable the modulus equation would omit it from the list of cycles to remove; we want to make sure it is included
+    if(i %% cycs_per_cable == 0){
+      cycle_location <- i
+    }else{
+      cycle_location <- i %% cycs_per_cable
+    }
+    
+
+    # Make sure the data is overlapping, and indicate if it should be removed
+    if(cycle_location + window_size > cycs_per_cable + 1){
+      windows_to_remove <- append(windows_to_remove, i)
+    } 
+  }
+  
+  
+  # Copy the window df to the new df we are going to use
+  new_window_df <- window_df
+  
+  # Remove the needed data
+  for(i in 1:length(windows_to_remove)){
+    new_window_df <- new_window_df[-which(new_window_df$Window == windows_to_remove[i]),]
+  }
+  
+  
+  # Create a variable to hold the cable number so a min and max trace can be calculated for each seperate cable
+  cable_number <- as.integer(new_window_df$Window / cycs_per_cable) + 1
+  new_window_df <- cbind(new_window_df, cable_number)
+  
+
+  # Create a unique window variable for better display of the data in the final plot
+  unique_window <- c()
+  for(i in 1:length(unique(new_window_df$Window))){
+    temp <- rep(i, length(unique(new_window_df$Frequency)))
+    unique_window <- c(unique_window,temp)
+  }
+  
+  # Bind the Unique Window variable to the df
+  new_window_df <- cbind(new_window_df, unique_window)
+  
+  
+  # Change the window numbers so it restarts at 1 once the cable number changes
+  new_window_value <-c()
+  for(j in 1:length(unique(new_window_df$cable_number))){  
+    for(i in 1:(cycs_per_cable - window_size + 1)){
+        temp <- rep(i, length(unique(new_window_df$Frequency)))
+        new_window_value <- c(new_window_value, temp)
+
+    }
+  }
+  
+  # Replace the old window values with the new ones
+    # Old values had gaps where the deleted traces were
+  new_window_df$Window <- new_window_value
+  
+  
+  # Make sure data is represented as a data frame and rename it
+  new_window_df <- as.data.frame(new_window_df)
+  names(new_window_df) <- c("Frequency","Maximum Shift", "Window", "Spec", "Cable Number", "Unique Window")
+  
+  ##### Generate the plot #####
+  
+  # Create the labels
+  title <- paste("Maximum S21 Magnitude Shift")
+  ylab <- paste("Max Change in S21 Between Two Cycles")
+  
+  
+  # Create the plot
+  p <- ggplot(data = new_window_df, mapping = aes(x = Frequency)) +
+        geom_line(aes(y = `Maximum Shift`, color = `Unique Window`, text = paste("Cable", cable_number, "Window", Window, sep = " "))) +
+        labs(x = "Frequency (GHz)", y = ylab, col = "Unique Window") +
+        ggtitle(title) +
+        scale_color_gradientn(colors = rainbow(5)) +
+        theme_minimal() + # this theme makes the plot very similar to the default plotly aesthetic
+        theme(plot.title = element_text(hjust = 0.5))
+  
+  
+  # Add specs to the plot if desired
+  p <- p + geom_line(aes(y = Spec), color = "red")
+  
+  
+  # Generate the plot
+  p <- ggplotly(p, dynamicTicks = TRUE) %>% layout(xaxis = list(autorange = FALSE))
+  p <- config(p, modeBarButtonsToRemove = c("zoomIn2d", "zoomOut2d", "lasso2d", "select2d", "toggleSpikelines","autoScale2d"))
+  p
+  
+  #toc()
+}
+
+```
+
+<center> TERADYNE CONFIDENTIAL DO NOT DISTRIBUTE </center>
+
+
+
+#### Max Phase Shift in the Complex Plane
+
+```{r Max phase Shift In Complex Plane single cable, echo = FALSE}
+if(num_cables == 1){
+  #tic("Create max phase phase shift plot")
+  
+  # Coverage Factor - defined in colins sheet
+  coverage_factor <- 3
+  
+  # Get the necessary data
+  df_melt_max_phase_shift <- melt(df, id.vars = c("Freq_GHz","Cycle","meas"), measure.vars = c("S21_Phase_Deg"))
+  names(df_melt_max_phase_shift) <- c("Frequency", "Cycle", "meas", "variable", "Phase")
+  
+  # Convert Return_Loss to linear so it is compared to the specs properly
+  #df_melt_max_phase_shift$Return_Loss <- 10^(df_melt_max_phase_shift$Phase/20)
+  
+  # Create the object to hold the actual variation measurements
+  max_phase_shift_df <- data.frame("Trace_num" = double(),"Frequency" = double(),"First_Cycle" = double(),"Second_Cycle" = double(),"Max_Change" = double())
+  temp_df <- data.frame("Trace_num" = double(),"Frequency" = double(),"First_Cycle" = double(),"Second_Cycle" = double(),"Max_Change" = double())
+  
+  # Begin calculation
+  for(i in 1:max(df_melt_max_phase_shift$meas)){
+    
+    # Get the first trace; trace "m" in colins notes
+    trace1 <- df_melt_max_phase_shift[which(df_melt_max_phase_shift$meas == i),]
+    
+    # This code is correct if not using a windowed approach
+    ###### 
+    #Itterate through all the other traces, compute differences and SD
+    #for(j in (i + 1):max(df_melt_max_phase_shift$Cycle)){
+    #}
+    ######
+    
+    
+    # find the correct value for the final cycle number of this window
+    if((i - 1 + window_size) >= max(df_melt_max_phase_shift$meas)){ end_cycle = i } else { end_cycle = (i - 1 + window_size) }
+    
+    # Get the second trace, compute difference, and fill the data frame
+    for(j in (i + 1):end_cycle){
+      
+       # this makes sure that i + 1 does not exceed the end_cycle
+      if((i + window_size) > max(df_melt_max_phase_shift$meas)){break}
+      
+      #print(paste("i:", i, "j:", j))
+      
+      # Get the second trace; trace "n" in colins notes
+      trace2 <- df_melt_max_phase_shift[which(df_melt_max_phase_shift$meas == j),]
+  
+      # Subtrace trace 2 from trace 1
+      difference <- abs(trace1$Phase) - abs(trace2$Phase)
+      # for(k in 1:length(difference)){
+      #   if(difference[k] < 0){
+      #     difference[k] <- difference
+      #   }
+      # }
+      
+      #max(difference)
+      #min(difference)
+      
+      # Fill temp_df
+      temp_df <- data.frame("Trace_num" = rep(i*j - 1, length(difference)), "Frequency" = trace1$Frequency, "First_Cycle" = rep(i, length(difference)),"Second_Cycle" = rep(j, length(difference)), "Max_Change" = difference)
+      
+      # Fill max_shift_phase_df
+      if(i*j - 1 == 1){
+        max_phase_shift_df <- temp_df
+      } else {
+        max_phase_shift_df <- rbind(max_phase_shift_df, temp_df)
+      }
+      
+      
+    }
+    
+    # Get the data from the current window
+    window_temp_df <- max_phase_shift_df[which(max_phase_shift_df$First_Cycle == i),]
+    
+    # Calculate the sd over the current window
+    window_temp_df <- group_by(window_temp_df,`Frequency`) %>% 
+      summarise(max_phase_shift_sd = sd(Max_Change), window_num = i)
+    
+    
+    # Fill window_df; df that holds all the final calculated sd values for each window
+      if(i == 1){
+        window_df <- window_temp_df
+      } else {
+        window_df <- rbind(window_df, window_temp_df)
+      }
+  }
+  
+  
+  ### Max shift of phase or S22 in the complex plane; specified in colins document
+  window_df <- window_df %>% mutate(max_phase_shift = ifelse(`Frequency` <= 8, 0.1,
+                                                      ifelse(`Frequency` > 8  & `Frequency` <= 24, 0.25,
+                                                      ifelse(`Frequency` > 24  & `Frequency` <= 54.2, 0.5,
+                                                      ifelse(`Frequency` > 54.2 & `Frequency` <= 90, 0.75, NA)))))
+  
+  
+  # Incorporate the coverage factor into the data by multiplying the SD by the coverage_factor
+  window_df$max_phase_shift_sd <- window_df$max_phase_shift_sd * coverage_factor
+  
+  # Rename the data
+  names(window_df) <- c("Frequency","Max Phase Shift", "Window", "Spec")
+  
+  # Round the measurements
+  window_df$`Max Phase Shift` <- round(window_df$`Max Phase Shift`,8)
+  
+  # Create highlight key
+  window_df <- highlight_key(window_df, ~Window)
+  
+  
+  # Create the labels
+  #title <- paste("Maximum Rate of Change Over a Calibration Frequency Step: Cal Step Size is ", max_change["width_mhz"], "MHz", sep = "")
+  title <- paste("Maximum Phase Shift")
+  ylab <- paste("Max Phase Delta Between Two Cycles (degrees)")
+  
+  # Create the plot
+  p <- ggplot(data = window_df, mapping = aes(x = Frequency, y = `Max Phase Shift`, color = Window)) +
+        geom_line(size = 0.5) +
+        labs(x = "Frequency (GHz)", y = ylab, col = "Window") +
+        ggtitle(title) +
+        scale_color_gradientn(colors = rainbow(5))  +
+        theme_minimal() + # this theme makes the plot very similar to the default plotly aesthetic
+        theme(plot.title = element_text(hjust = 0.5))
+  
+  
+  # Add specs to the plot if desired
+  p <- p + geom_line(aes(y = Spec), color = "red")
+  
+  
+  # Generate the plot
+  p <- ggplotly(p, dynamicTicks = TRUE, tooltip = c("Frequency", "Max Phase Shift", "Window", "Spec")) %>% layout(xaxis = list(autorange = FALSE))
+  p <- config(p, modeBarButtonsToRemove = c("zoomIn2d", "zoomOut2d", "lasso2d", "select2d", "toggleSpikelines","autoScale2d"))
+  p <- highlight(p, on = "plotly_click", off = "plotly_doubleclick", color = "black")
+  p
+  #toc()
+
+}
+
+
+```
+
+```{r Max phase Shift In Complex Plane multiple Cables, echo = FALSE, warning = FALSE}
+
+if(num_cables > 1){
+  #tic("Create max phase phase shift plot")
+  
+  # Coverage Factor - defined in colins sheet
+  coverage_factor <- 3
+  
+  # Get the necessary data
+  df_melt_max_phase_shift <- melt(df, id.vars = c("Freq_GHz","Cycle","meas"), measure.vars = c("S21_Phase_Deg"))
+  names(df_melt_max_phase_shift) <- c("Frequency", "Cycle", "meas", "variable", "Phase")
+  
+  # Convert Return_Loss to linear so it is compared to the specs properly
+  #df_melt_max_phase_shift$Return_Loss <- 10^(df_melt_max_phase_shift$Phase/20)
+  
+  # Create the object to hold the actual variation measurements
+  max_phase_shift_df <- data.frame("Trace_num" = double(),"Frequency" = double(),"First_Cycle" = double(),"Second_Cycle" = double(),"Change" = double())
+  temp_df <-            data.frame("Trace_num" = double(),"Frequency" = double(),"First_Cycle" = double(),"Second_Cycle" = double(),"Change" = double())
+  
+  # Begin calculation
+  for(i in 1:max(df_melt_max_phase_shift$meas)){
+    
+    # Get the first trace; trace "m" in colins notes
+    trace1 <- df_melt_max_phase_shift[which(df_melt_max_phase_shift$meas == i),]
+    
+    # This code is correct if not using a windowed approach
+    ###### 
+    #Itterate through all the other traces, compute differences and SD
+    #for(j in (i + 1):max(df_melt_max_phase_shift$Cycle)){
+    #}
+    ######
+    
+    
+    # find the correct value for the final cycle number of the window being created
+    if((i - 1 + window_size) >= (max(df_melt_max_phase_shift$meas) + 1)){ end_cycle = i } else { end_cycle = (i - 1 + window_size) }
+    
+    # Compute difference with all traces in the window, and fill the max_phase_shift_df data frame with the differential data
+    for(j in (i + 1):end_cycle){
+      
+      # this makes sure that i + 1 does not exceed the end_cycle
+      if((i + window_size) > (max(df_melt_max_phase_shift$meas) + 1)){break}
+      
+      #print(paste("i:", i, "j:", j))
+      
+      # Get the second trace; trace "n" in colins notes
+      trace2 <- df_melt_max_phase_shift[which(df_melt_max_phase_shift$meas == j),]
+  
+      # Subtrace trace 2 from trace 1
+      difference <- abs(trace1$Phase) - abs(trace2$Phase)
+      # for(k in 1:length(difference)){
+      #   if(difference[k] < 0){
+      #     difference[k] <- difference
+      #   }
+      # }
+      
+      #max(difference)
+      #min(difference)
+      
+      # Fill temp_df
+      temp_df <- data.frame("Trace_num" = rep(i*j - 1, length(difference)), "Frequency" = trace1$Frequency, "First_Cycle" = rep(i, length(difference)),"Second_Cycle" = rep(j, length(difference)), "Change" = difference)
+      
+      # Fill max_shift_phase_df
+      if(i*j - 1 == 1){
+        max_phase_shift_df <- temp_df
+      } else {
+        max_phase_shift_df <- rbind(max_phase_shift_df, temp_df)
+      }
+      
+      
+    }
+    
+    # Get all the data from the current window (meaning all diffenetial traces calculated with starting trace = i)
+    window_temp_df <- max_phase_shift_df[which(max_phase_shift_df$First_Cycle == i),]
+    
+    # Calculate the sd over the current window
+    window_temp_df <- group_by(window_temp_df,`Frequency`) %>% 
+      summarise(max_phase_shift_sd = sd(Change), window_num = i, max_phase_shift = max(Change), min_phase_shift = min(Change))
+    
+    
+    # Fill window_df; df that holds all the final calculated sd values for each window
+      if(i == 1){
+        window_df <- window_temp_df
+      } else {
+        window_df <- rbind(window_df, window_temp_df)
+      }
+    }
+  
+  
+  ### Max shift of phase or S22 in the complex plane; specified in colins document
+  window_df <- window_df %>% mutate(max_phase_shift = ifelse(`Frequency` <= 8, 0.1,
+                                                      ifelse(`Frequency` > 8  & `Frequency` <= 24, 0.25,
+                                                      ifelse(`Frequency` > 24  & `Frequency` <= 54.2, 0.5,
+                                                      ifelse(`Frequency` > 54.2 & `Frequency` <= 90, 0.75, NA)))))
+  
+  
+  # Incorporate the coverage factor into the data by multiplying the SD by the coverage_factor
+  window_df$max_phase_shift_sd <- window_df$max_phase_shift_sd * coverage_factor
+  
+  # Rename the data
+  names(window_df) <- c("Frequency","Max Phase Shift SD", "Window", "Spec", "Min Shift")
+  
+  
+  # Use the data frame from the previous plot but remove the data of the traces that were calculated with data from two different cables
+  cycs_per_cable <- total_cycles / num_cables
+  
+  
+  # Calculate the window numbers to remove
+  windows_to_remove <- c()
+  for(i in 1:length(unique(window_df$Window))){
+    
+    # When i == the number of cycles per cable the modulus equation would omit it from the list of cycles to remove; we want to make sure it is included
+    if(i %% cycs_per_cable == 0){
+      cycle_location <- i
+    }else{
+      cycle_location <- i %% cycs_per_cable
+    }
+    
+
+    # Make sure the data is overlapping, and indicate if it should be removed
+    if(cycle_location + window_size > cycs_per_cable + 1){
+      windows_to_remove <- append(windows_to_remove, i)
+    } 
+  }
+  
+  
+  # Copy the window df to the new df we are going to use
+  new_window_df <- window_df
+  
+  # Remove the needed data as long as there are traces that indicated a need for removal
+  if(length(windows_to_remove) >= 1){
+    for(i in 1:length(windows_to_remove)){
+      new_window_df <- new_window_df[-which(new_window_df$Window == windows_to_remove[i]),]
+    }
+  }
+  
+  
+  # Create a variable to hold the cable number so a min and max trace can be calculated for each seperate cable
+  cable_number <- as.integer(new_window_df$Window / cycs_per_cable) + 1
+  new_window_df <- cbind(new_window_df, cable_number)
+  
+  
+  
+  #temp <- data.frame(smry$Freq_GHz, abs(smry$max_S21_Phase_Deg), abs(smry$min_S21_Phase_Deg))
+  temp <- group_by(new_window_df, cable_number, Frequency) %>% summarise(Max_Shift = max(`Max Phase Shift SD`), Min_Shift = min(`Max Phase Shift SD`))
+  
+  # Rename the data
+  names(temp) <- c("Cable Number", "Frequency", "Max Phase Shift", "Min Phase Shift")
+  
+  
+  
+  
+  ### Max shift of phase or S22 in the complex plane; specified in colins document
+  spec_table <- data.frame(temp$Frequency)
+  names(spec_table) <- c("Frequency")
+  spec_table <- spec_table %>% mutate(Spec = ifelse(`Frequency` <= 8, 0.1,
+                                             ifelse(`Frequency` > 8  & `Frequency` <= 24, 0.25,
+                                             ifelse(`Frequency` > 24  & `Frequency` <= 54.2, 0.5,
+                                             ifelse(`Frequency` > 54.2 & `Frequency` <= 90, 0.75, NA)))))
+  
+  
+  
+  # Create the melted df and plot it
+  # Get the necessary data
+  max_melt <- melt(temp, id.vars = c("Cable Number", "Frequency"), measure.vars = c("Max Phase Shift"))
+  names(max_melt) <- c("Cable Number", "Frequency", "variable", "Max Phase Shift")
+  
+  min_melt <- melt(temp, id.vars = c("Cable Number", "Frequency"), measure.vars = c("Min Phase Shift"))
+  names(min_melt) <- c("Cable Number", "Frequency", "variable", "Min Phase Shift")
+  
+  
+  
+  
+  # Create the labels
+  #title <- paste("Maximum Rate of Change Over a Calibration Frequency Step: Cal Step Size is ", max_change["width_mhz"], "MHz", sep = "")
+  title <- paste("Min and Max Phase Shift Per Cable (+3 sigma)")
+  ylab <- paste("S21 Phase (degrees)")
+  
+  # Create the plot
+  p <- ggplot(data = temp, mapping = aes(x = Frequency)) +
+        geom_line(data = max_melt, aes(y = `Max Phase Shift`, color = `Cable Number`)) +
+        labs(x = "Frequency (GHz)", y = ylab) +
+        ggtitle(title) 
+  
+  
+  # Add specs to the plot if desired
+  p <- p + geom_line(data = min_melt, aes(y = `Min Phase Shift`, color = `Cable Number`)) +
+           geom_line(data = spec_table, aes(y = `Spec`), color = "red") +
+           #labs(x = "Frequency (GHz)", y = "Spec")
+           theme(legend.position = "none")  +
+           theme_minimal() + # this theme makes the plot very similar to the default plotly aesthetic
+           theme(plot.title = element_text(hjust = 0.5))
+  
+  
+  # Generate the plot
+  p <- ggplotly(p, dynamicTicks = TRUE) %>% layout(xaxis = list(autorange = FALSE))
+  p <- config(p, modeBarButtonsToRemove = c("zoomIn2d", "zoomOut2d", "lasso2d", "select2d", "toggleSpikelines","autoScale2d"))
+  p
+  #toc()
+
+}
+
+```
+
+
+
+
+```{r Max phase Shift In Complex Plane Abs Min Max Between Cables, echo = FALSE, warning = FALSE}
+#### Max Phase Shift in the Complex Plane: Evaluated For All Cables
+
+if(num_cables > 1){
+  #tic("Create max phase phase shift plot")
+
+  #temp <- data.frame(smry$Freq_GHz, abs(smry$max_S21_Phase_Deg), abs(smry$min_S21_Phase_Deg))
+  temp <- group_by(new_window_df, Frequency) %>% summarise(Max_Shift = max(`Max Phase Shift SD`), Min_Shift = min(`Max Phase Shift SD`))
+  
+  # Rename the data
+  names(temp) <- c("Frequency", "Max Phase Shift", "Min Phase Shift")
+  
+  
+  
+  
+  ### Max shift of phase or S22 in the complex plane; specified in colins document
+  spec_table <- data.frame(temp$Frequency)
+  names(spec_table) <- c("Frequency")
+  spec_table <- spec_table %>% mutate(Spec = ifelse(`Frequency` <= 8, 0.1,
+                                             ifelse(`Frequency` > 8  & `Frequency` <= 24, 0.25,
+                                             ifelse(`Frequency` > 24  & `Frequency` <= 54.2, 0.5,
+                                             ifelse(`Frequency` > 54.2 & `Frequency` <= 90, 0.75, NA)))))
+  
+  
+  
+  # Create the labels
+  #title <- paste("Maximum Rate of Change Over a Calibration Frequency Step: Cal Step Size is ", max_change["width_mhz"], "MHz", sep = "")
+  title <- paste("Min and Max Phase Shift Over All Data")
+  ylab <- paste("S21 Phase (degrees)")
+  
+  # Create the plot
+  p <- ggplot(data = temp, mapping = aes(x = Frequency)) +
+        geom_line(aes(y = `Max Phase Shift`), color = "black") +
+        geom_line(aes(y = `Min Phase Shift`), color = "blue") +
+        labs(x = "Frequency (GHz)", y = ylab) +
+        ggtitle(title)  +
+        theme_minimal() + # this theme makes the plot very similar to the default plotly aesthetic
+        theme(plot.title = element_text(hjust = 0.5))
+  
+  
+  # Add specs to the plot if desired
+  p <- p + geom_line(data = spec_table, aes(y = `Spec`), color = "red") +
+           #labs(x = "Frequency (GHz)", y = "Spec")
+           theme(legend.position = "none")
+  
+  
+  # Generate the plot
+  p <- ggplotly(p, dynamicTicks = TRUE) %>% layout(xaxis = list(autorange = FALSE))
+  p <- config(p, modeBarButtonsToRemove = c("zoomIn2d", "zoomOut2d", "lasso2d", "select2d", "toggleSpikelines","autoScale2d"))
+  p
+  #toc()
+}
+
+
+
+```
+
+<center> TERADYNE CONFIDENTIAL DO NOT DISTRIBUTE </center>
+
+
+
+
+
+
+
+
+

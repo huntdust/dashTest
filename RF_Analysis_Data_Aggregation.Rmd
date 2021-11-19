@@ -1,0 +1,677 @@
+---
+title: "RF Cable Analysis"
+author: "Andrew Yokubaitis"
+output: html_document
+#date: "`r format(Sys.time(), '%d %B %Y')`"
+---
+
+```{r setup, include=FALSE}
+# Clear R session
+rm(list=ls())
+
+# Prevents java OOM errors when trying to create the excel files
+knitr::opts_chunk$set(echo = TRUE, fig.height = 7, fig.width = 10)
+options(java.parameters = "-Xmx10g")
+
+#library(openxlsx)
+#library(xlsx)
+library(readxl)
+library(dplyr)
+library(data.table)
+library(gtools) # enables the mixed sort function
+library(ggplot2)
+library(reshape2)
+library(plotly)
+library(readbulk)
+library(stringr)
+library(tictoc)
+#options(digits = 14)
+options(dplyr.summarise.inform = FALSE)
+##########################
+# User defined variables #
+
+
+# Path to where the data is stored
+  # Note: Windows uses "\" in its file names by default and they must be chagned to "/" in the script to function properly
+#pth <- "//pilly/jaguar/interface/project/MX-44/Agoura Hills Data Analysis and Pics/Data and Analysis/Gore/Gore_PA_Bit63/Data/All_Data_Every_10th"
+#pth <- "C:/R_Programs/Nutcracker_Data/Falcon_Pair_1/Test1"
+#pth <- "E:/Teradyne_WFH/Falcon_Cross-Corr_Data/All_Data/Test1"
+#pth <- "//pilly/jaguar/interface/project/MX44e/Pilot Line Issues/s2p"
+
+
+pth <- input$RF1_pth
+write.csv(pth,file =  'C:/users/huntdust/desktop/dir.txt')
+#pth <- "C:/Users/huntdust/Desktop/KeyenceIntegration_Beercan_5/"
+
+
+save_location <- pth
+
+company <- "Gore"
+
+cable_name <- "Keyence Integration Test"
+
+# Total number of cycles the cable experienced during the collection of this data set
+total_cycles <- 1362
+
+# Sets the Number of cycles between measurements; allows use of less data to lower computation time
+cycs_between_meas <- 5
+
+# declare how many cables are included in this data set so that the max phase shift between cables can be correctly calculated
+num_cables <- 1
+
+
+# Specify if this data is from a Falcon test and should therefore have the adpater losses subtracted from the results
+is_falcon <- FALSE
+
+# Set the value and indicator for whether or not to use further sample reduction
+reduction_indicator <- FALSE
+reduction_count <- 5
+
+
+# Speficy whether or not to print the name of every data file used during compliation
+print_data_names <- FALSE
+
+
+# Freq to check insertion loss and return loss at to see how it varies over time
+desired_freq_high <- 53
+desired_freq_low  <- 10
+
+
+# Specify if which S11 and S21 specs should be used in the plots
+  # values can be low, mid, high, or mx44
+s11_spec <- "Falcon"
+s21_spec <- "Falcon"
+
+# End of User Defined Variables #
+#################################
+
+
+# Create the path to the s2p data
+s2p_pth <- paste(pth,"s2p_data", sep = "")
+
+# Get the date the data was taken
+first_file <- paste(s2p_pth,mixedsort(sort(list.files(s2p_pth)))[1], sep = "/")
+data_date <- file.mtime(first_file)  # gets date and time the file was created
+data_date <- as.character(data_date)
+data_date <- strsplit(data_date, split = " ")[[1]][1]
+
+# Names of the variables in the data files from the VNA
+n_ri <- c("Freq_GHz","S11_Real","S11_Img","S21_Real","S21_Img","S12_Real","S12_Img","S22_Real","S22_Img")
+n_pm <- c("Freq_GHz","S11_dB","S11_Phase_Deg","S21_dB","S21_Phase_Deg","S12_dB","S12_Phase_Deg","S22_dB","S22_Phase_Deg")
+
+# Get the number of data files and their names in order
+order <- mixedsort(sort(list.files(s2p_pth)))
+num_files <- length(order)
+
+# Subset the data based on the reduction indicator and reduction coutn variables
+if(reduction_indicator){
+  order <- order[seq(1, length(order), reduction_count)]
+  cycs_between_meas <- cycs_between_meas * reduction_count
+}
+
+# Get file creation times
+s2p_pth_times <- dir(s2p_pth, full.names=TRUE)
+filetimes <- (file.info(s2p_pth_times)$mtime)
+filetimes <- sort(filetimes)
+
+# Create a data frame of the filenames and filetimes so filetimes can late rbe appended to the master df
+fileinfo <- data.frame(order, filetimes)
+names(fileinfo) <- c("filenames", "filetimes")
+
+# End of User Defined Variables #
+#################################
+
+```
+
+
+```{r Adapter Data, echo = FALSE, eval = FALSE}
+
+# Get the adapter data for the Falcon tests
+adapter_pth <- "E:/Teradyne_WFH/Falcon/Dual_Adapter_Meas.s2p"
+adapter_loss <- read.delim(adapter_pth, header = FALSE, sep = "", dec = ".", comment.char = "!")
+
+# Delete row with data names
+adapter_loss <- adapter_loss[-1,]
+
+# change data to the correct data type
+for(k in 1:ncol(adapter_loss)){
+    adapter_loss[,k] <- as.numeric(as.character(adapter_loss[,k]))
+}
+
+# Change data names
+names(adapter_loss) <- n_ri
+
+
+# Modify the data and create the variables we need
+adapter_loss <- adapter_loss %>%
+      mutate(`S11_Mag`   = sqrt((`S11_Real`)^2 + (`S11_Img`)^2), 
+             `S11_Phase_Rad` = atan(`S11_Img` / `S11_Real`),
+             `S11_Phase_Deg` = atan(`S11_Img` / `S11_Real`) * (180/pi),
+             `S11_dB`    = 20*log10(sqrt((`S11_Real`)^2 + (`S11_Img`)^2)),
+             
+             `S12_Mag`   = sqrt((`S12_Real`)^2 + (`S12_Img`)^2),
+             `S12_Phase_Rad` = atan(`S12_Img` / `S12_Real`),
+             `S12_Phase_Deg` = atan(`S12_Img` / `S12_Real`) * (180/pi),
+             `S12_dB`    = 20*log10(sqrt((`S12_Real`)^2 + (`S12_Img`)^2)),
+
+             `S21_Mag`   = sqrt((`S21_Real`)^2 + (`S21_Img`)^2), 
+             `S21_Phase_Rad` = atan(`S21_Img` / `S21_Real`),
+             `S21_Phase_Deg` = atan(`S21_Img` / `S21_Real`) * (180/pi),
+             `S21_dB`    = 20*log10(sqrt((`S21_Real`)^2 + (`S21_Img`)^2)),
+
+             `S22_Mag`   = sqrt((`S22_Real`)^2 + (`S22_Img`)^2), 
+             `S22_Phase_Rad` = atan(`S22_Img` / `S22_Real`),
+             `S22_Phase_Deg` = atan(`S22_Img` / `S22_Real`) * (180/pi),
+             `S22_dB`    = 20*log10(sqrt((`S22_Real`)^2 + (`S22_Img`)^2))
+      )
+
+
+adapter_loss2 <- adapter_loss
+
+# Divide all columns by 2 if not the frequency column
+for(k in 1:ncol(adapter_loss)){
+    if(k > 1){
+      adapter_loss[,k] <- (adapter_loss[,k] / 2)
+    }
+}
+
+
+# Create the function that subtracts the adapter losses in the next section if specified by the is_falcon variable
+subtract_additional_losses <- function(master_df, loss_table, meas_num){
+  
+  # Get the data for a measurement
+  d <- master_df[which(master_df$meas == meas_num),]
+  
+  # Subtract the additional losses
+  d$S21_dB <- d$S21_dB - loss_table$S21_dB
+  
+  return(d$S21_dB)
+}
+```
+
+
+
+```{r Data_Transform, echo=FALSE, warning = FALSE}
+# This data type indicator is set depending on the format of the data is is used later when converting data to the other format
+data_format <- c(0)
+
+#tic("Data aggregation")
+if(print_data_names){
+  for(i in 1:length(order)){print(paste("Trace", i, "is from file", order[i], sep = " "))}
+}
+
+# Create the master data frame
+df <- c(0)
+
+# Create a vector to hold the data of the standard deviation calculated every cycle
+sd_by_cycle_s21 <- c(0)
+sd_by_cycle_phase <- c(0)
+
+# Read in all the data
+df <- read_bulk(directory = s2p_pth, verbose = FALSE, ## make this false to stop the printing as files are loaded
+                fun = read.delim, stringsAsFactors = FALSE, extension = ".s2p", header = FALSE, sep = "", dec = ".", comment.char = "!")
+
+# Rename the data and set the data indicator
+if(df$V4[1] == "dB"){
+  names(df) <- c(n_pm, "filename")
+  data_format <- "dB"
+} else if(df$V4[1] == "RI"){
+  names(df) <- c(n_ri, "filename")
+  data_format <- "RI"
+} else {
+  print("Data is not in the correct format for this script.")
+}
+  
+  
+  
+# remove the row of labels from the beginning of each file
+df <- df[-which(df$Freq_GHz == "#"),]
+
+
+# sort the data into the order it was taken in 
+df <- df[order(match(df$filename, order)),]
+
+
+# save the filename column temporarily
+filenames <- df[,ncol(df)]
+
+# delete the filename column
+df <- df[,-ncol(df)]
+
+
+
+# Set the right types for all the data
+for(k in 1:ncol(df)){
+  df[,k] <- as.numeric(as.character(df[,k]))
+}
+
+# Rename the rows to the proper count
+row.names(df) <- 1:nrow(df)
+
+###################################################
+##### Convert the data to the opposite format #####
+###################################################
+if(data_format == "dB"){
+  df <- df %>%
+      mutate(`S11_Real` = `S11_dB` * cos(`S11_Phase_Deg`),
+             `S11_Img` = `S11_dB` * sin(`S11_Phase_Deg`),
+             
+             `S12_Real` = `S12_dB` * cos(`S12_Phase_Deg`),
+             `S12_Img` = `S12_dB` * sin(`S12_Phase_Deg`),
+             
+             `S21_Real` = `S21_dB` * cos(`S21_Phase_Deg`),
+             `S21_Img` = `S21_dB` * sin(`S21_Phase_Deg`),
+             
+             `S22_Real` = `S22_dB` * cos(`S22_Phase_Deg`),
+             `S22_Img` = `S22_dB` * sin(`S22_Phase_Deg`),
+             
+             `S11_Mag`    = 20*log10(sqrt((`S11_Real`)^2 + (`S11_Img`)^2)),
+             `S12_Mag`    = 20*log10(sqrt((`S12_Real`)^2 + (`S12_Img`)^2)),
+             `S21_Mag`    = 20*log10(sqrt((`S21_Real`)^2 + (`S21_Img`)^2)),
+             `S22_Mag`    = 20*log10(sqrt((`S22_Real`)^2 + (`S22_Img`)^2)),
+             
+             `S11_Phase_Rad` = S11_Phase_Deg * (pi/180),
+             `S12_Phase_Rad` = S12_Phase_Deg * (pi/180),
+             `S21_Phase_Rad` = S21_Phase_Deg * (pi/180),
+             `S22_Phase_Rad` = S22_Phase_Deg * (pi/180), 
+             
+             `VSWR` = (1 + 10^((S11_dB) / 20)) / (1 - 10^((S11_dB) / 20))
+
+
+      )
+} else if(data_format == "RI"){
+  df <- df %>%
+      mutate(`S11_Mag`       = sqrt((`S11_Real`)^2 + (`S11_Img`)^2), 
+             `S11_Phase_Rad` = atan(`S11_Img` / `S11_Real`),
+             `S11_Phase_Deg` = atan(`S11_Img` / `S11_Real`) * (180/pi),
+             `S11_dB`        = 20*log10(sqrt((`S11_Real`)^2 + (`S11_Img`)^2)),
+             
+             `S12_Mag`       = sqrt((`S12_Real`)^2 + (`S12_Img`)^2),
+             `S12_Phase_Rad` = atan(`S12_Img` / `S12_Real`),
+             `S12_Phase_Deg` = atan(`S12_Img` / `S12_Real`) * (180/pi),
+             `S12_dB`        = 20*log10(sqrt((`S12_Real`)^2 + (`S12_Img`)^2)),
+             
+             `S21_Mag`       = sqrt((`S21_Real`)^2 + (`S21_Img`)^2), 
+             `S21_Phase_Rad` = atan(`S21_Img` / `S21_Real`),
+             `S21_Phase_Deg` = atan(`S21_Img` / `S21_Real`) * (180/pi),
+             `S21_dB`        = 20*log10(sqrt((`S21_Real`)^2 + (`S21_Img`)^2)),
+             
+             `S22_Mag`       = sqrt((`S22_Real`)^2 + (`S22_Img`)^2), 
+             `S22_Phase_Rad` = atan(`S22_Img` / `S22_Real`),
+             `S22_Phase_Deg` = atan(`S22_Img` / `S22_Real`) * (180/pi),
+             `S22_dB`        = 20*log10(sqrt((`S22_Real`)^2 + (`S22_Img`)^2)),
+             
+             `VSWR` = (1 + 10^((S11_dB) / 20)) / (1 - 10^((S11_dB) / 20))
+
+  )
+} else {
+  print("Data is not in the correct format for this script.")
+}
+
+###### Calculate the phase and_Magnitude components in dB's of each paramater #####
+###################################################################################
+# df <- df %>%
+#   mutate(`S11_Mag`       = sqrt((`S11_Real`)^2 + (`S11_Img`)^2), 
+#          `S11_Phase_Rad` = atan(`S11_Img` / `S11_Real`),
+#          `S11_Phase_Deg` = atan(`S11_Img` / `S11_Real`) * (180/pi),
+#          `S11_dB`        = 20*log10(sqrt((`S11_Real`)^2 + (`S11_Img`)^2)),
+#          
+#          `S12_Mag`       = sqrt((`S12_Real`)^2 + (`S12_Img`)^2),
+#          `S12_Phase_Rad` = atan(`S12_Img` / `S12_Real`),
+#          `S12_Phase_Deg` = atan(`S12_Img` / `S12_Real`) * (180/pi),
+#          `S12_dB`        = 20*log10(sqrt((`S12_Real`)^2 + (`S12_Img`)^2)),
+#          
+#          `S21_Mag`       = sqrt((`S21_Real`)^2 + (`S21_Img`)^2), 
+#          `S21_Phase_Rad` = atan(`S21_Img` / `S21_Real`),
+#          `S21_Phase_Deg` = atan(`S21_Img` / `S21_Real`) * (180/pi),
+#          `S21_dB`        = 20*log10(sqrt((`S21_Real`)^2 + (`S21_Img`)^2)),
+#          
+#          `S22_Mag`       = sqrt((`S22_Real`)^2 + (`S22_Img`)^2), 
+#          `S22_Phase_Rad` = atan(`S22_Img` / `S22_Real`),
+#          `S22_Phase_Deg` = atan(`S22_Img` / `S22_Real`) * (180/pi),
+#          `S22_dB`        = 20*log10(sqrt((`S22_Real`)^2 + (`S22_Img`)^2))
+#   )
+###################################################################################
+
+
+
+
+# create the meas column
+meas <- c(0)
+for(i in 1:num_files){
+  if(i == 1){
+    meas <- rep(i,length(unique(df$Freq_GHz)))
+  } else {
+    meas <- c(meas, rep(i,length(unique(df$Freq_GHz))))
+  }
+}
+
+# add the meas count to the data set
+df <- cbind(df, meas)
+
+# rebind the filenames column
+df <- cbind(df, filenames)
+
+# Create the cycle variable
+df <- df %>% mutate(Cycle = meas * cycs_between_meas)
+
+
+# Subtract the adapter losses if desired
+new_S21_dB <- c(0)
+if(is_falcon){
+  for(i in 1:length(unique(df$meas))){
+    if(i == 1){
+      new_S21_dB <- subtract_additional_losses(df, adapter_loss, i)
+    } else {
+      new_S21_dB <- c(new_S21_dB, subtract_additional_losses(df, adapter_loss, i))
+    }
+  }
+  df$S21_dB <- new_S21_dB
+  names(df)[names(df) == 'new_S21_dB'] <- 'S21_dB'
+}
+
+
+
+# Create the sd_by_cycle columns
+sd_by_cycle_s21 <- c(0)
+sd_by_cycle_phase <- c(0)
+for(i in 1:num_files){
+  if(i == 1){
+    sd_by_cycle_s21 <- rep(0,length(unique(df$Freq_GHz)))
+    sd_by_cycle_phase <- rep(0,length(unique(df$Freq_GHz)))
+  } else {
+    # get the data up to the current cycle
+    temp_df <- df[which(df$meas <= i),]
+    
+    # calculate the sd values up through the current cycle
+    total_sd <- group_by(temp_df,`Freq_GHz`) %>%
+      summarise( sd_by_cycle_s21 = sd(`S21_dB`), sd_by_cycle_phase = sd(abs(`S21_Phase_Deg`)))
+    
+    # Add the sd data to sd_by_cycle vectors
+    sd_by_cycle_s21 <- c(sd_by_cycle_s21,total_sd$sd_by_cycle_s21)
+    sd_by_cycle_phase <- c(sd_by_cycle_phase,total_sd$sd_by_cycle_phase)
+    
+  }
+}
+
+# Add the SD data to the data frame
+df <- cbind(df, sd_by_cycle_s21, sd_by_cycle_phase)
+
+# Change frequency to GHz instead of Hz
+df$Freq_GHz <- df$Freq_GHz / 1000000000 
+
+# Merge fileinfo into df based on filenames so that we have the filetime info in the df
+df <- merge(df, fileinfo, by = "filenames")
+
+# Move the filename column to the end of the df since it is currently the first column
+df <- df %>% relocate(filenames, .after = filetimes)
+
+# Re-sort the df
+df <- arrange(df, Cycle, Freq_GHz)
+
+
+                    
+# # Remove any data at a freq higher than 43.5 GHz
+#df <- df[which(df$`Freq_GHz` < 43510000000),]
+
+#toc()
+```
+
+
+```{r Summary, echo=FALSE, warning=FALSE}
+##### Calculate Summary Statistics #####
+########################################
+#get summary stats for each param
+smry <- group_by(df,`Freq_GHz`) %>%
+  summarise(
+    mean_S11R = mean(`S11_Real`), sd_S11R = sd(`S11_Real`), max_S11R = max(`S11_Real`), min_S11R = min(`S11_Real`),
+    mean_S11I = mean(`S11_Img`),  sd_S11I = sd(`S11_Img`),  max_S11I = max(`S11_Img`),  min_S11I = min(`S11_Img`),
+
+    mean_S12R = mean(`S12_Real`), sd_S12R = sd(`S12_Real`), max_S12R = max(`S12_Real`), min_S12R = min(`S12_Real`),
+    mean_S12I = mean(`S12_Img`),  sd_S12I = sd(`S12_Img`),  max_S12I = max(`S12_Img`),  min_S12I = min(`S12_Img`),
+
+    mean_S21R = mean(`S21_Real`), sd_S21R = sd(`S21_Real`), max_S21R = max(`S21_Real`), min_S21R = min(`S21_Real`),
+    mean_S21I = mean(`S21_Img`),  sd_S21I = sd(`S21_Img`),  max_S21I = max(`S21_Img`),  min_S21I = min(`S21_Img`),
+
+    mean_S22R = mean(`S22_Real`), sd_S22R = sd(`S22_Real`), max_S22R = max(`S22_Real`), min_S22R = min(`S22_Real`),
+    mean_S22I = mean(`S22_Img`),  sd_S22I = sd(`S22_Img`),  max_S22I = max(`S22_Img`),  min_S22I = min(`S22_Img`),
+
+    mean_S11_Mag   = mean(`S11_Mag`),   sd_S11_Mag   = sd(`S11_Mag`),   max_S11_Mag   = max(`S11_Mag`),   min_S11_Mag   = min(`S11_Mag`),
+    mean_S11_Phase_Rad = mean(`S11_Phase_Rad`), sd_S11_Phase_Rad = sd(`S11_Phase_Rad`), max_S11_Phase_Rad = max(`S11_Phase_Rad`), min_S11_Phase_Rad = min(`S11_Phase_Rad`),
+    mean_S11_Phase_Deg = mean(`S11_Phase_Deg`), sd_S11_Phase_Deg = sd(`S11_Phase_Deg`), max_S11_Phase_Deg = max(`S11_Phase_Deg`), min_S11_Phase_Deg = min(`S11_Phase_Deg`),
+    mean_S11_dB    = mean(`S11_dB`),    sd_S11_dB    = sd(`S11_dB`),    max_S11_dB    = max(`S11_dB`),    min_S11_dB    = min(`S11_dB`),
+
+    mean_S12_Mag   = mean(`S12_Mag`),   sd_S12_Mag   = sd(`S12_Mag`),   max_S12_Mag   = max(`S12_Mag`),   min_S12_Mag   = min(`S12_Mag`),
+    mean_S12_Phase_Rad = mean(`S12_Phase_Rad`), sd_S12_Phase_Rad = sd(`S12_Phase_Rad`), max_S12_Phase_Rad = max(`S12_Phase_Rad`), min_S12_Phase_Rad = min(`S12_Phase_Rad`),
+    mean_S12_Phase_Deg = mean(`S12_Phase_Deg`), sd_S12_Phase_Deg = sd(`S12_Phase_Deg`), max_S12_Phase_Deg = max(`S12_Phase_Deg`), min_S12_Phase_Deg = min(`S12_Phase_Deg`),
+    mean_S12_dB    = mean(`S12_dB`),    sd_S12_dB    = sd(`S12_dB`),    max_S12_dB    = max(`S12_dB`),    min_S12_dB    = min(`S12_dB`),
+
+    mean_S21_Mag   = mean(`S21_Mag`),   sd_S21_Mag   = sd(`S21_Mag`),   max_S21_Mag   = max(`S21_Mag`),   min_S21_Mag   = min(`S21_Mag`),
+    mean_S21_Phase_Rad = mean(`S21_Phase_Rad`), sd_S21_Phase_Rad = sd(`S21_Phase_Rad`), max_S21_Phase_Rad = max(`S21_Phase_Rad`), min_S21_Phase_Rad = min(`S21_Phase_Rad`),
+    mean_S21_Phase_Deg = mean(`S21_Phase_Deg`), sd_S21_Phase_Deg = sd(`S21_Phase_Deg`), max_S21_Phase_Deg = max(`S21_Phase_Deg`), min_S21_Phase_Deg = min(`S21_Phase_Deg`),
+    mean_S21_dB    = mean(`S21_dB`),    sd_S21_dB    = sd(`S21_dB`),    max_S21_dB    = max(`S21_dB`),    min_S21_dB    = min(`S21_dB`),
+
+    mean_S22_Mag   = mean(`S22_Mag`),   sd_S22_Mag   = sd(`S22_Mag`),   max_S22_Mag   = max(`S22_Mag`),   min_S22_Mag   = min(`S22_Mag`),
+    mean_S22_Phase_Rad = mean(`S22_Phase_Rad`), sd_S22_Phase_Rad = sd(`S22_Phase_Rad`), max_S22_Phase_Rad = max(`S22_Phase_Rad`), min_S22_Phase_Rad = min(`S22_Phase_Rad`),
+    mean_S22_Phase_Deg = mean(`S22_Phase_Deg`), sd_S22_Phase_Deg = sd(`S22_Phase_Deg`), max_S22_Phase_Deg = max(`S22_Phase_Deg`), min_S22_Phase_Deg = min(`S22_Phase_Deg`),
+    mean_S22_dB    = mean(`S22_dB`),    sd_S22_dB    = sd(`S22_dB`),    max_S22_dB    = max(`S22_dB`),    min_S22_dB    = min(`S22_dB`)
+  )
+```
+
+
+```{r Create Specs, echo = FALSE}
+
+######### Find the closest freqs in the data set to the desired freqs #########
+closest_freq_low <- df$Freq_GHz[which(abs(df$Freq_GHz - desired_freq_low) == min(abs(df$Freq_GHz - desired_freq_low)))][1]
+closest_freq_high <- df$Freq_GHz[which(abs(df$Freq_GHz - desired_freq_high) == min(abs(df$Freq_GHz - desired_freq_high)))][1]
+
+
+######### DF Data table specs #########
+
+# S11 Spec - DEFINED BY HIGH 5 SPECS and used if s11_spec variable is set to mx44
+df <- df %>% mutate(S11_spec_mx44 = ifelse(`Freq_GHz` <= 12.5 , -18,
+                               ifelse(`Freq_GHz` > 12.5 & `Freq_GHz` <= 21, -15,
+                               ifelse(`Freq_GHz` > 21   & `Freq_GHz` <= 29, -14,
+                               ifelse(`Freq_GHz` > 29   & `Freq_GHz` <= 40, -13,
+                               ifelse(`Freq_GHz` > 40, -12,NA))))))
+
+
+# Specs for Falcon as defined in the RF Specs presentation from Roger Sinsheimer
+df <- df %>% mutate(S11_spec_falcon = ifelse(`Freq_GHz` <= 3, -25,
+                                      ifelse(`Freq_GHz` > 3    & `Freq_GHz` <= 8, -20,
+                                      ifelse(`Freq_GHz` > 8    & `Freq_GHz` <= 12, -18,
+                                      ifelse(`Freq_GHz` > 12   & `Freq_GHz` <= 20, -16,
+                                      ifelse(`Freq_GHz` > 20   & `Freq_GHz` <= 24, -15,
+                                      ifelse(`Freq_GHz` > 24   & `Freq_GHz` <= 54.2, -13,
+                                      ifelse(`Freq_GHz` > 54.2 & `Freq_GHz` <= 70, -11,
+                                      ifelse(`Freq_GHz` > 70, -10, NA)))))))))
+
+
+
+# S11 Spec pass/fail indicator
+df <- df %>% mutate(pass_S11_spec = ifelse(`S11_dB` < S11_spec_falcon, TRUE, FALSE))
+
+
+###################
+### COLIN SPECS ###
+###################
+
+# S11 spec defined from Colin Chow's spec sheet
+df <- df %>% mutate(S11_spec_low = ifelse(`Freq_GHz` <= 3 , -25,
+                               ifelse(`Freq_GHz` > 3 & `Freq_GHz` <= 6, -20,
+                               ifelse(`Freq_GHz` > 6 & `Freq_GHz` <= 8, -20,NA))))
+
+df <- df %>% mutate(S11_spec_mid = ifelse(`Freq_GHz` <= 6 , NA,
+                               ifelse(`Freq_GHz` > 6  & `Freq_GHz` <= 12, -18,
+                               ifelse(`Freq_GHz` > 12 & `Freq_GHz` <= 24, -15, NA))))
+
+df <- df %>% mutate(S11_spec_high = ifelse(`Freq_GHz` <= 20 , NA,
+                               ifelse(`Freq_GHz` > 20 & `Freq_GHz` <= 24, -16,
+                               ifelse(`Freq_GHz` > 24 & `Freq_GHz` <= 44, -13,
+                               ifelse(`Freq_GHz` > 44 & `Freq_GHz` <= 53, -13, NA)))))
+
+# S21 Speclow band- These specs were defined from Colin Chow in the RF mm-Wave Signal Delivery Requirements spreadsheet
+df <- df %>% mutate(S21_spec_low = ifelse(`Freq_GHz` <= 3, -1,
+                               ifelse(`Freq_GHz` > 3 & `Freq_GHz` <= 6, -1.6,
+                               ifelse(`Freq_GHz` > 6 & `Freq_GHz` <= 8, -2, NA))))
+
+# S21 Spec - mid band
+df <- df %>% mutate(S21_spec_mid = ifelse(`Freq_GHz` <= 6, -2.4,
+                               ifelse(`Freq_GHz` > 6 & `Freq_GHz` <= 12, -3.1,
+                               ifelse(`Freq_GHz` > 12 & `Freq_GHz` <= 24, -4.2, NA))))
+
+# S21 Spec - high band
+df <- df %>% mutate(S21_spec_high = ifelse(`Freq_GHz` <= 20, NA,
+                               ifelse(`Freq_GHz` > 20 & `Freq_GHz` <= 24, -4,
+                               ifelse(`Freq_GHz` > 24 & `Freq_GHz` <= 44, -5.4,
+                               ifelse(`Freq_GHz` > 44 & `Freq_GHz` <= 53, -6, NA)))))
+
+# S21 Spec - For the Falcon Project
+df <- df %>% mutate(S21_spec_falcon = ifelse(`Freq_GHz` <= 3, -1,
+                                      ifelse(`Freq_GHz` > 3 & `Freq_GHz` <= 6,     -1.6,
+                                      ifelse(`Freq_GHz` > 6 & `Freq_GHz` <= 8,     -2,
+                                      ifelse(`Freq_GHz` > 8 & `Freq_GHz` <= 12,    -3.1,
+                                      ifelse(`Freq_GHz` > 12 & `Freq_GHz` <= 24,   -4,
+                                      ifelse(`Freq_GHz` > 24 & `Freq_GHz` <= 44,   -5.4,
+                                      ifelse(`Freq_GHz` > 44 & `Freq_GHz` <= 54.2, -6,
+                                      ifelse(`Freq_GHz` > 54.2 & `Freq_GHz` <= 70, -7,
+                                      ifelse(`Freq_GHz` > 70   & `Freq_GHz` <= 90, -8.1, NA))))))))))
+
+
+# S21 Flatness over modulation spec
+df <- df %>% mutate(S21_flatness_spec = 0.4)
+
+df <- df %>% mutate(S21_flatness_bw_low = ifelse(`Freq_GHz` <= 8, .4, NA))                      # .4 is .4 GHz which is 400 MHz
+
+df <- df %>% mutate(S21_flatness_bw_mid = ifelse(`Freq_GHz` >= 6 & `Freq_GHz` <= 24, .8, NA))   # .8 is .8 GHz which is 800 MHz
+
+df <- df %>% mutate(S21_flatness_bw_high = ifelse(`Freq_GHz` >= 20 & `Freq_GHz` <= 53, .8, NA)) # .8 is .8 GHz which is 800 MHz
+
+
+# S21 Max rate of change obver calibration frequecy step
+  # "Calibration freq step" defined as 20 MHz in the spec doc
+
+#MIGHT NOT NEED THESE
+S21_cal_step_size = .02       # this is 20 MHz
+S21_cal_step_max_slope = .2   # this is in dB
+
+### Max shift of S11 or S22 in the complex plane
+df <- df %>% mutate(max_S11_shift_low = ifelse(`Freq_GHz` <= 3, -48,
+                                        ifelse(`Freq_GHz` > 3 & `Freq_GHz` <= 6, -46,
+                                        ifelse(`Freq_GHz` > 6 & `Freq_GHz` <= 8, -45, NA))))
+
+df <- df %>% mutate(max_S11_shift_mid = ifelse(`Freq_GHz` <= 6, NA,
+                                        ifelse(`Freq_GHz` > 6 & `Freq_GHz` <= 12, -42,
+                                        ifelse(`Freq_GHz` > 12 & `Freq_GHz` <= 24, -42, NA))))
+
+df <- df %>% mutate(max_S11_shift_high = ifelse(`Freq_GHz` <= 20, NA,
+                                        ifelse(`Freq_GHz` > 20 & `Freq_GHz` <= 24, -42,
+                                        ifelse(`Freq_GHz` > 24 & `Freq_GHz` <= 44, -42,
+                                        ifelse(`Freq_GHz` > 44 & `Freq_GHz` <= 53, -42, NA)))))
+
+
+
+
+
+
+
+
+
+
+# S21 Spec pass/fail indicator
+#df <- df %>% mutate(pass_S21_spec = ifelse(`S21_dB` > S21_spec, TRUE, FALSE))
+
+
+#S21 standard deviation spec - first low spec
+df <- df %>% mutate(S21_Stdev_spec_low = ifelse(`Freq_GHz` <= 20, 0.016667,
+                                         ifelse(`Freq_GHz` > 20 & `Freq_GHz` <= 40, 0.025,   # CHANGE 40 to 28
+                                         ifelse(`Freq_GHz` > 28,0.033,NA))))
+
+# S21_rep_spec <- data.table(c(20,28,), c(0.016667,0.025,0.033))
+# names(S21_rep_spec) <- c("break_freq","spec")
+
+
+#S21 standard deviation spec - second x3 spec
+df <- df %>% mutate(S21_Stdev_spec_high = ifelse(`Freq_GHz` <= 6, NA,
+                                          ifelse(`Freq_GHz` > 6 & `Freq_GHz` <= 25,0.04,
+                                          ifelse(`Freq_GHz` > 25 & `Freq_GHz` <= 30,0.0666667,
+                                          ifelse(`Freq_GHz` > 30 & `Freq_GHz` <= 43.5 ,0.12666667,
+                                          ifelse(`Freq_GHz` >= 43.5 , NA,NA))))))
+
+#S21 standard deviation spec for Falcon
+df <- df %>% mutate(S21_Stdev_spec_falcon = ifelse(`Freq_GHz` <= 3, .03,
+                                            ifelse(`Freq_GHz` > 3 & `Freq_GHz` <= 6, 0.046,
+                                            ifelse(`Freq_GHz` > 6 & `Freq_GHz` <= 8, 0.052,
+                                            ifelse(`Freq_GHz` > 8 & `Freq_GHz` <= 12, 0.1,
+                                            ifelse(`Freq_GHz` > 12 & `Freq_GHz` <= 24, 0.2,
+                                            ifelse(`Freq_GHz` > 24 & `Freq_GHz` <= 54.2, 0.35,
+                                            ifelse(`Freq_GHz` >= 54.2, NA,NA))))))))
+
+
+# S11 Vector error spec
+df <- df %>% mutate(S11_Vect_Err_spec = ifelse(`Freq_GHz` <= 6, NA,
+                                        ifelse(`Freq_GHz` > 6 & `Freq_GHz` <= 12,0.01,
+                                        ifelse(`Freq_GHz` > 12 & `Freq_GHz` <= 20,0.025,
+                                        ifelse(`Freq_GHz` > 20 & `Freq_GHz` <= 40,0.05,
+                                        ifelse(`Freq_GHz` > 40 & `Freq_GHz` <= 43.5 ,0.075,
+                                        ifelse(`Freq_GHz` >= 43.5 , NA,NA)))))))
+
+
+##### Smry data table specs ########
+
+# S21 High Repeatability spec 
+smry <- smry %>% mutate(S21_Stdev_spec_high = ifelse(`Freq_GHz` <= 6, NA,
+                                          ifelse(`Freq_GHz` > 6 & `Freq_GHz` <= 25,0.04,
+                                          ifelse(`Freq_GHz` > 25 & `Freq_GHz` <= 30,0.0666667,
+                                          ifelse(`Freq_GHz` > 30 & `Freq_GHz` <= 43.5 ,0.12666667,
+                                          ifelse(`Freq_GHz` >= 43.5 , NA,NA))))))
+
+# provides values in areas the given specs dont cover in order to allow the pass/fail readout to runction properly
+smry <- smry %>% mutate(S21_Stdev_spec_high_eval = ifelse(`Freq_GHz` <= 6, 100,
+                                          ifelse(`Freq_GHz` > 6 & `Freq_GHz` <= 25,0.04,
+                                          ifelse(`Freq_GHz` > 25 & `Freq_GHz` <= 30,0.0666667,
+                                          ifelse(`Freq_GHz` > 30 & `Freq_GHz` <= 43.5 ,0.12666667,
+                                          ifelse(`Freq_GHz` >= 43.5 , 100,NA))))))
+
+
+#S21 standard deviation spec for Falcon
+smry <- smry %>% mutate(S21_Stdev_spec_falcon = ifelse(`Freq_GHz` <= 3, .03,
+                                            ifelse(`Freq_GHz` > 3 & `Freq_GHz` <= 6, 0.046,
+                                            ifelse(`Freq_GHz` > 6 & `Freq_GHz` <= 8, 0.052,
+                                            ifelse(`Freq_GHz` > 8 & `Freq_GHz` <= 12, 0.1,
+                                            ifelse(`Freq_GHz` > 12 & `Freq_GHz` <= 24, 0.2,
+                                            ifelse(`Freq_GHz` > 24 & `Freq_GHz` <= 44, 0.35,
+                                            ifelse(`Freq_GHz` > 44 & `Freq_GHz` <= 53, 0.35,
+                                            ifelse(`Freq_GHz` >= 53, NA,NA)))))))))
+
+
+
+
+# S21 Repeatability spec pass/fail indicator
+smry <- smry %>% mutate(pass_S21_Stdev_spec_high = ifelse(sd_S21_dB < S21_Stdev_spec_high_eval, TRUE, FALSE))
+
+# S21 Low Repeatability spec 
+smry <- smry %>% mutate(S21_Stdev_spec_low = ifelse(`Freq_GHz` <= 20, 0.016667,
+                                             ifelse(`Freq_GHz` > 20 & `Freq_GHz` <= 40,0.025,
+                                             ifelse(`Freq_GHz` > 28,0.033,NA))))
+
+# S21 Repeatability spec pass/fail indicator
+smry <- smry %>% mutate(pass_S21_Stdev_spec_low = ifelse(sd_S21_dB < S21_Stdev_spec_low, TRUE, FALSE))
+
+
+```
+
+
+############## NEED CODE TO EXPORT THE DATA
+```{r Export Data, echo = FALSE}
+aggregated_excel_filename <- paste(save_location, "Aggregated_Data.csv", sep = "")
+write.csv(df,aggregated_excel_filename, row.names = FALSE)
+
+smry_excel_filename <- paste(save_location, "Summary_Data.csv", sep = "")
+write.csv(smry,smry_excel_filename, row.names = FALSE)
+```
+
+
+
+
+

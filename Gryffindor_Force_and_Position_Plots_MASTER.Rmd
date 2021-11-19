@@ -52,14 +52,15 @@ library(tictoc)
 #library(tidyverse)
 
 # Provide the path to the data
-pth  <- "C:/Users/huntdust/Desktop/ShinyServer/"
+#pth  <- "C:/Users/huntdust/Desktop/ShinyServer/"
 #pth <- "//pilly/jaguar/interface/project/Gryffindor/Data_and_Results/Rosenberger_Cable2/Testing_Demate_Force_Meas2/"
-pth <- paste(pth, input$dataSelection)
-pth <- gsub(" ", "", pth)
+#pth <- paste(pth, input$dataSelection)
+#pth <- gsub(" ", "", pth)
+pth <- "//pilly/jaguar/interface/project/Gryffindor/Data_and_Results/KeyenceIntegration/keyenceIntegration_worstCaseAlignment/"
 
-parent <- "C:/Users/huntdust/Desktop/ShinyServer/"
-path <- paste(parent, input$dataSelection)
-path <- gsub(" ", "", path)
+#parent <- "C:/Users/huntdust/Desktop/ShinyServer/"
+#path <- paste(parent, input$dataSelection)
+#path <- gsub(" ", "", path)
 
 
 
