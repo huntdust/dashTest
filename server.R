@@ -9,14 +9,17 @@ library(plotly)
 
 options(shiny.maxRequestSize=30*1024^2)
 
-analysispath <- "C:/home/dashTest/Analysis/"
+analysispath <- "/opt/shiny-server/samples/sample-apps/dashtest/analysis"
+reticulate::use_virtualenv("/opt/shiny-server/samples/sample-apps/dashtest/testenv",required=TRUE")
+reticulate::use_python("/usr/bin/python2.7")
+
 addResourcePath("tmpuser",getwd())
 
 server <- function(input,output,session) {
   
   tabIndex <- reactiveVal(0)
   volumes = getVolumes()
-  basepath <- 'C:/home/dashTest/dashTest/'
+  basepath <- '/opt/shiny-server/samples/sample-apps/dashtest/'
   ev <- reactiveValues(data=NULL)
   
   source(file.path("samplePlot.R"), local = TRUE)$value  #sample plot
