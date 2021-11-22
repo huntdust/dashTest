@@ -7,48 +7,19 @@ library(knitr)
 library(shinywebcam)
 library(bslib)
 library(shinyFiles)
+library(DT)
 
-datapath <- "/mnt/Gryffindor/Data_and_Results"
-analysispath <- "/opt/shiny-server/samples/sample-apps/dashtest/analysis"
-RMDPath <- "/opt/shiny-server/samples/sample-apps/dashtest/rmd"
+datapath <- "C:/Users/huntdust/Desktop/ShinyServer/"
+analysispath <- "C:/home/dashTest/Analysis/"
+RMDPath <- "C:/home/dashTest/rmd/"
 datafiles <- list.files(datapath)
 analysisfiles <- list.files(analysispath)
 analysistypes <- list.files(RMDPath)
 
-setwd("/opt/shiny-server/samples/sample-apps/dashtest")
+setwd("C:/home/dashTest")
 
 ui <- 
-  navbarPage("Demo", collapsible = TRUE, inverse = TRUE, theme = shinytheme("darkly"),
-             tabPanel("SamplePlot",
-                      fluidPage(
-                        tabsetPanel(
-                          tabPanel("Plot1",br(),
-                                   sidebarLayout(
-                                     sidebarPanel(
-                                       radioButtons(
-                                         inputId = "plotSelection",
-                                         label = "Choose a plot",
-                                         choices = c("Temperature",
-                                                     "Humidity")), br()
-                                     ),
-                                     
-                                     mainPanel(plotlyOutput(outputId = "samplePlot",height="600px"))
-                                   )),
-                          
-                          tabPanel("Plot2",br(),
-                                   sidebarLayout(
-                                     sidebarPanel(
-                                       radioButtons(
-                                         inputId = "plotSelection",
-                                         label = "Choose a plot",
-                                         choices = c("Temperature",
-                                                     "Humidity")), br()
-                                     ),
-                                     
-                                     mainPanel(plotlyOutput(outputId = "samplePlotTwo", height = "600px"))
-                                   ))
-                        )
-                      )),
+  navbarPage("Data visualization and analysis tools",id='tabs', collapsible = TRUE, inverse = TRUE, theme = shinytheme("cosmo"),
              tabPanel("Temperature/Humidity Plots",
                       fluidPage(
                         tabsetPanel(
@@ -106,7 +77,7 @@ ui <-
                                        #imageOutput(outputId = "humPlot", height = "900px", width="900px")
                                      )
                                    ))
-                          
+                    
                           
                         ))),
              tabPanel("HTML Demos",
@@ -139,25 +110,22 @@ ui <-
                                        
                                      )
                                    ))
-                        ))), 
-             tabPanel("Live plot generation",
-                      
-                      #includeMarkdown("test.rmd")
-                      uiOutput("md_file")
-                      
-                      
-             ),
+                        ))),
              tabPanel("S2P plot",
                       fluidPage(
                         sidebarLayout(
                           sidebarPanel(
                             fileInput(
-                              inputId = "csvFiles",
-                              label = "Select an S2P file",
+                              inputId = "s2pFiles",
+                              label = "Select S2P files",
                               multiple = TRUE,
                               buttonLabel = "Browse...",
                               placeholder = "No file selected"
-                            )
+                            ),
+                            shinyFilesButton("Btn_GetFile", "Choose a file" ,
+                                             title = "Please select a file:", multiple = FALSE,
+                                             buttonType = "default", class = NULL),
+                          
                           ),
                           mainPanel(
                             fluidRow(
@@ -184,9 +152,6 @@ ui <-
                         )
                       )
              ),
-<<<<<<< Updated upstream
-             tabPanel("Time domain plot",
-=======
              tabPanel("Advanced RF Analysis",
                       tabsetPanel(
                         tabPanel("RF Analysis Part 1",
@@ -224,24 +189,36 @@ ui <-
                            )
                         ),
              tabPanel("TEC Plot",
->>>>>>> Stashed changes
                       fluidPage(
                         sidebarLayout(
                           sidebarPanel(
                             fileInput(
-                              inputId = "csvFiles",
-                              label = "Drag and drop here",
-                              multiple = TRUE,
+                              inputId = "TEC_File",
+                              label = "Select TEC Data",
+                              multiple = FALSE,
                               buttonLabel = "Browse...",
                               placeholder = "No file selected"
-                            )
+                            ),
+                            fileInput(
+                              inputId = "padFile",
+                              label = "Select Pad Package Input File",
+                              multiple = FALSE,
+                              buttonLabel = "Browse...",
+                              placeholder = "No file selected"
+                            ),
+                            textInput("maxR",label='Resistance Threshold',value='0.1')
+                            #shinyFilesButton('TEC_File',label = 'File select', title = 'Please select file', multiple = FALSE)
                           ),
                           mainPanel(
-                            #plot goes here
-                            #plotlyOutput(outputId = "timePlot")
+                             # do.call(tabsetPanel, c(id='tab',lapply(1:5, function(i) {
+                             #     tabPanel(
+                             #        title=paste0('tab ', i),
+                             #        textOutput(paste0('out',i)),
+                             #        #plotlyOutput(outputId = "TEC_Analysis", height = "1000px", width = "900px"),
+                             #        #DTOutput("TEC_Stats", width = "100%",height = "auto")
+                             #   )
+                             # })))
                             
-<<<<<<< Updated upstream
-=======
                             #tabsetPanel(id='TECTabs',type='tabs')
                            
                             #sliderInput(inputId='TECSlider','TEC cycle', min=0,5,value=2)
@@ -259,19 +236,10 @@ ui <-
                             DTOutput("TEC_Stats", width = "90%",height = "auto")
                             #plotlyOutput(outputId = 'pads',width='50%',height="auto")
                             
->>>>>>> Stashed changes
                           )
                         )
-                      )
+                      )   
              ),
-<<<<<<< Updated upstream
-             tabPanel("shinyFiles",
-                      bootstrapPage(
-                        shinyFilesButton('files', label='File select', title='Please select a file', multiple=FALSE)
-                      ))
-        
-  )
-=======
           tabPanel("Cycle Plot",
                    fluidPage(
                      sidebarLayout(
@@ -305,4 +273,3 @@ ui <-
                    )
                    )
   )
->>>>>>> Stashed changes

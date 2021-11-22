@@ -1,36 +1,55 @@
 library(shiny)
 library(here)
 library(rmarkdown)
-<<<<<<< Updated upstream
-#library(tidyverse)
-#library(shinyFiles)
-library(ggplot2)
-=======
 library(tidyverse)
 library(shinyFiles)
 library(fs)
 library(DT)
 library(plotly)
-library(abind)
->>>>>>> Stashed changes
 
-analysispath <- "/opt/shiny-server/samples/sample-apps/dashtest/analysis"
+options(shiny.maxRequestSize=30*1024^2)
+
+analysispath <- "C:/home/dashTest/Analysis/"
 addResourcePath("tmpuser",getwd())
-reticulate::use_virtualenv("/opt/shiny-server/samples/sample-apps/dashtest/testenv",required=TRUE")
-reticulate::use_python("/usr/bin/python2.7")
 
-server <- function(input,output) {
+server <- function(input,output,session) {
   
-  
-  basepath <- '/opt/shiny-server/samples/sample-apps/dashtest/'
+  tabIndex <- reactiveVal(0)
+  volumes = getVolumes()
+  basepath <- 'C:/home/dashTest/dashTest/'
   ev <- reactiveValues(data=NULL)
   
   source(file.path("samplePlot.R"), local = TRUE)$value  #sample plot
   source(file.path("samplePlot2.R"), local = TRUE)$value  #sample plot
   source(file.path("tempPlot.R"), local=TRUE)$value      #Temp Plot
-  #source(file.path("humPlot.R"), local=TRUE)$value      #Temp Plot
+  source(file.path("humPlot.R"), local=TRUE)$value      #Temp Plot
   
-
+  groupInput <- reactive({
+    switch(input$group1,
+           "Student Status" = survey$status, 
+           "Country / Region of Origin" = survey$country, 
+           "Major" = survey$major)
+  })
+  
+  dataInput <- reactive({
+    switch(input$question1, 
+           "Email/chat with library staff" = survey$Q1.1_2, 
+           "Find books" = survey$Q1.1_7, 
+           "Search for articles" = survey$Q1.1_4, 
+           "Use subject / citation guides" = survey$Q1.1_6,
+           "Book a group study room" = survey$Q1.1_3)
+  })
+  
+  plotSensors <- reactive({
+    switch(input$humSensors,
+           "Ambient_SD",
+           "Gryffindor",
+           "Reliability",
+           "Ambient_HP",
+           "Leakage_HP",
+           "Leakage2_HP",
+           "All")
+  })
   
   timeScaleSelection <- reactive({
     switch(input$timescale,
@@ -39,6 +58,7 @@ server <- function(input,output) {
            "1 month", 
            "all")
   })
+  
   
   observeEvent(input$runAnalysis, {
     #should a seperate version of these scripts be kept with different file paths for the server? The paths are inherently different...
@@ -52,10 +72,18 @@ server <- function(input,output) {
     
   })
   
-<<<<<<< Updated upstream
-=======
+  # observeEvent(input$runRF1, {
+  #   #should a seperate version of these scripts be kept with different file paths for the server? The paths are inherently different...
+  #   input_files <- input$RF1
+  #   
+  #   output_file <- paste(basepath, 'analysis/', input$dataSelection, '.html')
+  #   output_file <- gsub(" ", "", output_file)
+  #   
+  #   render(input = input_file, "html_document", output_file = output_file) 
+  #   
+  # })
   
->>>>>>> Stashed changes
+  
   #S2p Drag/Drop handling 
   output$fileNames <- renderTable({
     # Return immediately if user doesn't select any files.
@@ -65,9 +93,6 @@ server <- function(input,output) {
     return(input$csvFiles)
   })
   
-  renderedTableObj <- reactive({
-    
-  })
   
   getPage <- function() {
     file <- input$analysisSelection
@@ -103,41 +128,27 @@ server <- function(input,output) {
     
     gg
   })
-<<<<<<< Updated upstream
-=======
   #shinyFileChoose(input, 'files', root=c(root='.'), filetypes=c('', '.txt', '.html', '.s2p', '.R', '.Rmd'))
   
   
   
-#######S2P PLOTTING VERSION 2##################################################################################################################################################################################################
->>>>>>> Stashed changes
+#######S2P PLOTTING VERSION 2######################
   
   output$s2pPlot <- renderPlotly({
-    file <- input$csvFiles
-    data <- tools::file_ext(file$datapath)
-    
-    req(file)
-    validate(need(data=="s2p","Please upload an s2p file"))
-    s2pdata <- read.csv(file$datapath)
-    print(file$datapath)
-    
     skrf <- import("skrf")
     plt <- import("matplotlib.pyplot")
-    net <- skrf$Network(file$datapath)
-
+    file <- input$s2pFiles
+    paths <- file$datapath
+    numFiles <- dim(input$s2pFiles)[1]
+    names <- file$name
+    
+    net <- skrf$Network(file$datapath[1])
     s11 <- net$s11
-    f <- s11$f
     db <- s11$s_db
+    f <-  s11$f
     data <- data.frame(f,db)
-    data$db <- unlist(data$db)
-    print(db)
     
-    #+ scale_x_continuous(trans = 'log10') + scale_y_continuous(trans = 'log10')
-    plot <- ggplot(data, aes(x = f, y = db)) + geom_line(aes(group=1)) + labs(x = "Frequency", y = "Magntitude (dB)") + ggtitle('S11')
-    plot
     
-<<<<<<< Updated upstream
-=======
     fig <- plot_ly(data,x=~f,y=~db,type='scatter',mode='lines',name=names[1])
     cnt<-1
     
@@ -156,57 +167,57 @@ server <- function(input,output) {
       cnt <- cnt+1
     }
     
-    fig <- fig %>% layout(title='S11',xaxis = list(title = 'Frequency (Ghz)'),yaxis = list(title = 'Magnitude of S11 (dB)'), legend = list(orientation="h",y=-0.5)) 
+    fig <- fig %>% layout(title='S11', legend = list(orientation="h",y=-0.3)) 
     fig
     
     #RE-WRITE WITH PLOTLY SO THAT NAMES CAN BE ASSIGNED APPROPRIATELY 
->>>>>>> Stashed changes
   })
   
   output$s2pPlot2 <- renderPlotly({
-    file <- input$csvFiles
-    data <- tools::file_ext(file$datapath)
-    
-    req(file)
-    validate(need(data=="s2p","Please upload an s2p file"))
-    s2pdata <- read.csv(file$datapath)
-    print(file$datapath)
     
     skrf <- import("skrf")
     plt <- import("matplotlib.pyplot")
-    net <- skrf$Network(file$datapath)
+    file <- input$s2pFiles
+    paths <- file$datapath
+    numFiles <- dim(input$s2pFiles)[1]
+    names <- file$name
     
+    net <- skrf$Network(file$datapath[1])
     s12 <- net$s12
-    f <- s12$f
-    db2 <- s12$s_db
+    db <- s12$s_db
+    f <-  s12$f
+    data <- data.frame(f,db)
     
-    data2 <- data.frame(f,db2)
-    #data2$db2 <- unlist(data2$db2)
-    #data2$db2 <- Re(data2$db2)
+    fig <- plot_ly(data,x=~f,y=~db,type='scatter',mode='lines',name=names[1])
+    cnt<-1
     
-<<<<<<< Updated upstream
-    #Add new plot rather than overwriting 
-    plot2 <- ggplot(data2, aes(x = f, y = db2)) + geom_line(aes(group=1)) + labs(x = "Frequency", y = "Magntitude (dB)") + ggtitle('S12')
-    plot2
-=======
-    fig <- fig %>% layout(title='S12',legend = list(orientation="h",y=-0.5), xaxis = list(title = 'Frequency (Ghz)'),yaxis = list(title = 'Magnitude of S12 (dB)')) 
+    for (f in 2:numFiles) {
+      net <- skrf$Network(paths[cnt])
+      s12 <- net$s12
+      f <-  s12$f
+      db <- s12$s_db
+      data <- data.frame(f,db)
+      data$db <- unlist(data$db)
+      
+      fig <- fig %>% add_trace(data=data,y=~db,mode='lines', name = names[cnt])
+      cnt <- cnt+1
+    }
+    
+    
+    fig <- fig %>% layout(title='S12',legend = list(orientation="h",y=-0.3)) 
     fig
->>>>>>> Stashed changes
   })
+    
   
   output$timePlot <- renderPlotly({
-    file <- input$csvFiles
-    data <- tools::file_ext(file$datapath)
-    
-    req(file)
-    validate(need(data=="s2p","Please upload an s2p file"))
-    s2pdata <- read.csv(file$datapath)
-    print(file$datapath)
-    
     skrf <- import("skrf")
-    plt <- import("matplotlib.pyplot")
-    net <- skrf$Network(file$datapath)
+    file <- input$s2pFiles
+    paths <- file$datapath
+    skrf <- import("skrf")
+    numFiles <- dim(input$s2pFiles)[1]
+    names <- file$name
     
+    net <- skrf$Network(paths[1])
     s11 <- net$s11
     s11_ext <- s11$extrapolate_to_dc()
     t <- s11_ext$step_response()[[1]]
@@ -217,10 +228,6 @@ server <- function(input,output) {
     z <- x
     data <- data.frame(t,z)
     
-<<<<<<< Updated upstream
-    tdr <- ggplot(data, aes(x = t, y = z)) + geom_line(aes(group=1)) + labs(x = "Time (s)", y = "Impedance (Ohm)") + ggtitle('Time domain conversion')
-    tdr
-=======
     tdr <- plot_ly(data,x=~t,y=~z,type='scatter',mode='lines',name=names[1])
     cnt <- 1 
     
@@ -241,25 +248,111 @@ server <- function(input,output) {
     
     }
     
-    tdr <- tdr %>% layout(title='Time Domain Conversion',xaxis=list(title='Time (s)'),yaxis=list(title='Impedance (Ohm)'),legend = list(orientation="h",y=-0.5)) 
+    tdr <- tdr %>% layout(title='Time Domain Conversion',xaxis=list(title='Time (s)'),yaxis=list(title='Impedance (Ohm)'),legend = list(orientation="h",y=-0.3)) 
     tdr
   
   })
     
   
-################RF1 ANALYSIS##########################################################################################################################################################################################################
+  
+  
+  
+############S2P PLOTTING OLD#####################
+  # output$s2pPlot <- renderPlotly({
+  #   file <- input$csvFiles
+  #   print(file$datapath)
+  #   data <- tools::file_ext(file$datapath)
+  #   
+  #   req(file)
+  #   validate(need(data=="s2p","Please upload an s2p file"))
+  #   s2pdata <- read.csv(file$datapath)
+  #   print(file$datapath)
+  #   
+  #   skrf <- import("skrf")
+  #   plt <- import("matplotlib.pyplot")
+  #   net <- skrf$Network(file$datapath)
+  # 
+  #   s11 <- net$s11
+  #   f <- s11$f
+  #   db <- s11$s_db
+  #   data <- data.frame(f,db)
+  #   data$db <- unlist(data$db)
+  #   print(db)
+  #   
+  #   #+ scale_x_continuous(trans = 'log10') + scale_y_continuous(trans = 'log10')
+  #   plot <- ggplot(data, aes(x = f, y = db)) + geom_line(aes(group=1)) + labs(x = "Frequency", y = "Magntitude (dB)") + ggtitle('S11')
+  #   plot
+  #   
+  # })
+  # 
+  # output$s2pPlot2 <- renderPlotly({
+  #   file <- input$csvFiles
+  #   data <- tools::file_ext(file$datapath)
+  #   
+  #   req(file)
+  #   validate(need(data=="s2p","Please upload an s2p file"))
+  #   s2pdata <- read.csv(file$datapath)
+  #   print(file$datapath)
+  #   
+  #   skrf <- import("skrf")
+  #   plt <- import("matplotlib.pyplot")
+  #   net <- skrf$Network(file$datapath)
+  #   
+  #   s12 <- net$s12
+  #   f <- s12$f
+  #   db2 <- s12$s_db
+  #   
+  #   data2 <- data.frame(f,db2)
+  #   #data2$db2 <- unlist(data2$db2)
+  #   #data2$db2 <- Re(data2$db2)
+  #   
+  #   #Add new plot rather than overwriting 
+  #   plot2 <- ggplot(data2, aes(x = f, y = db2)) + geom_line(aes(group=1)) + labs(x = "Frequency", y = "Magntitude (dB)") + ggtitle('S12')
+  #   plot2
+  #})
+  
+  # output$timePlot <- renderPlotly({
+  #   file <- input$csvFiles
+  #   data <- tools::file_ext(file$datapath)
+  #   
+  #   req(file)
+  #   validate(need(data=="s2p","Please upload an s2p file"))
+  #   s2pdata <- read.csv(file$datapath)
+  #   print(file$datapath)
+  #   
+  #   skrf <- import("skrf")
+  #   plt <- import("matplotlib.pyplot")
+  #   net <- skrf$Network(file$datapath)
+  #   
+  #   s11 <- net$s11
+  #   s11_ext <- s11$extrapolate_to_dc()
+  #   t <- s11_ext$step_response()[[1]]
+  #   z <- s11_ext$step_response()[[2]]
+  #   
+  #   t<- t*10e9
+  #   x <- 50*(1+z)/(1-z)
+  #   z <- x
+  #   data <- data.frame(t,z)
+  #   
+  #   tdr <- ggplot(data, aes(x = t, y = z)) + geom_line(aes(group=1)) + labs(x = "Time (s)", y = "Impedance (Ohm)") + ggtitle('Time domain conversion')
+  #   tdr
+  #   
+  #   
+  # })
+
+
+  
+################RF1 ANALYSIS##############################
   
   output$RF1_analysis <- renderUI({
     filePth <- getwd()
     
->>>>>>> Stashed changes
     
+    render(input = "C:/home/dashtest/RF_Analysis_Data_Aggregation.Rmd")
+    #Delay(10000)
+    #render(input = "C:/home/dashtest/RF_Analysis_Part1.Rmd")
     
   })
-<<<<<<< Updated upstream
-  
-  output$tempPlot <- renderPlotly({
-=======
 
   observeEvent(input$dir, {   
     setwd(choose.dir("c:/")) #selecting a directory   
@@ -273,7 +366,7 @@ server <- function(input,output) {
   
   })
   
-################RF2 ANALYSIS##########################################################################################################################################################################################################  
+################RF2 ANALYSIS##############################  
   
   output$RF2_analysis <- renderUI({
     filePth <- getwd()
@@ -291,7 +384,7 @@ server <- function(input,output) {
   
   
 
-###############TEC ANALYSIS##########################################################################################################################################################################################################
+###############TEC ANALYSIS##############################
   
     output$TEC_Analysis <- renderPlotly({
       
@@ -412,33 +505,19 @@ server <- function(input,output) {
       comp <- as.numeric(comp)
       pattern <- cbind(pattern,'res'=comp)
       
-      
-      print(dim(pattern))
-      #arr <- array(0,dim=c(dim(pattern)[1],(dim(pattern)[2]+1),cycle))
-      resData <- d[((cycle-1)+1):(cycle*cycleLength),first_resistance_column:last_resistance_coluimn,] #address each res set with resData[n,]
-      
-      
-      
-      temp <- resData[1,]
-      temp2 <- resData[2,]
-      sheet <- merge(pattern,temp)
-      sheet2 <- merge(pattern,temp2)
-      arr <- abind(sheet,sheet2,along=3)
-     
-      
-      for (sheet in 2:dim(resData)[1]) {
-        #Get resistance data for one cycle
-        temp <- resData[sheet,]
-  
-        #Append resistance data for each cyle to the pattern data to create a sheet
-        sheet <- merge(pattern,temp)
-  
-        #Append sheet to three dimensional array initialized outside of the loop
-        arr <- abind(arr,sheet, along = 3)
-      }
-      
-      print(arr)
-      print(dim(arr))
+       # arr <- array(0,dim=c(dim(pattern)[1],(dim(pattern)[2]+1),cycle))
+       # 
+       # resData <- d[((cycle-1)+1):(cycle*cycleLength),first_resistance_column:last_resistance_coluimn,] #address each res set with resData[n,]
+       # for (sheet in 1:dim(resData)[1]) {
+       #   #Get resistance data for one cycle
+       #   temp <- resData[sheet,]
+       #   
+       #   #Append resistance data for each cyle to the pattern data to create a sheet 
+       #   
+       #   
+       #   #Append sheet to three dimensional array initialized outside of the loop
+       #   
+       # }
        
        #cbind might not work here - need to append multiple columns. Need to make multidimensional array with pattern (2d) + data  
 
@@ -446,9 +525,8 @@ server <- function(input,output) {
        
       #plt <- ggplot(data=pattern, aes(x=X,y=Y)) + geom_point() + scale_color_gradientn(colors = rainbow(10))
       
-      #color = res, frame = cycle
       plt <- plot_ly(data=pattern,x=~X,y=~Y,type = 'scatter',mode='markers',color=~res)
-      plt <- plt %>% layout(title='Pad position vs. resistance',xaxis = list(title = ""),yaxis = list(title = ""))
+      plt <- plt %>% layout(title='Pad pattern',xaxis = list(title = ""),yaxis = list(title = ""))
       plt
       
       #Append colors based on full compression data. Need to append column of resistances at full compression -> get from the global d frame 
@@ -509,14 +587,14 @@ server <- function(input,output) {
     })
     
     
-################CYCLE PLOTS##########################################################################################################################################################################################################################
+################CYCLE PLOTS##############################
 
     output$CyclesPlot <- renderPlotly({
       
       #introduce tab/TEC number feature - TEC_Analysis needs to accept plot # argument
       
       file <- input$Cycles_File
-      d <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
+      d <<- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
       cycleLength <- dim(d)[1]
       
       max_resistance <- as.double(input$maxRC)
@@ -562,79 +640,16 @@ server <- function(input,output) {
       
       plt
     })
-    
-    output$cycle_Stats <- renderDT(
-      cycle_stats()
-    )
-    
-    cycle_stats <-reactive({
-      #need a TEC input if going to split up the plots 
-      file <- input$Cycles_File
-      data <- tools::file_ext(file$datapath)
-      
-      
-      d <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
-      max_resistance <- as.double(input$maxRC)
-      cycleLength <- dim(d)[1]
-      
-      # Get the columns
-      first_resistance_column <- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
-      last_resistance_coluimn <- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
-      Force_column <- which(names(d)=="LdCel.0")              #Load Cell data - forces
-      
-      #First - First Cycle
-      avg_last <- mean(as.double(d[1,c(first_resistance_column:last_resistance_coluimn)]))
-      std_last <- sd(as.double(d[1,c(first_resistance_column:last_resistance_coluimn)]))
-      df_first <- c(avg_last,std_last,4*std_last,5*std_last,6*std_last,7*std_last)
-      
-      #Last Cycle
-      avg_last <- mean(as.double(d[cycleLength,c(first_resistance_column:last_resistance_coluimn)]))
-      std_last <- sd(as.double(d[cycleLength,c(first_resistance_column:last_resistance_coluimn)]))
-      df_last <- c(avg_last,std_last,4*std_last,5*std_last,6*std_last,7*std_last)
-      
-      labels = c('mean', 'std', '4 sigma', '5 sigma', '6 sigma', '7 sigma')
-      headers = c('TEC', 'Full Compression')
-      
-      cycle_stats <- data.frame(metrics=labels, FIRST_CYCLE = df_first, LAST_CYCLE = df_last)
-      cycle_stats
-    })
-    
-    
-    output$cycle_pads <- renderPlotly({
-      file <- input$Cycles_File
-      
-      d <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
-      cycleLength <- dim(d)[1]
-      
-      patternFile <- input$padFile_cycles
-      pattern <- read.delim(patternFile$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
-      x_column <- na.omit(pattern['X'])
-      y_column <- na.omit(pattern['Y'])
-      
-      pattern <- pattern[0:dim(x_column)[1],]
-      
-      comp <- d[cycleLength,first_resistance_column:last_resistance_coluimn]
-      comp <- as.numeric(comp)
-      pattern <- cbind(pattern,'res'=comp)
-     
-      
-      plt <- plot_ly(data=pattern,x=~X,y=~Y,type = 'scatter',mode='markers',color=~res)
-      plt <- plt %>% layout(title='Pad position vs. resistance',xaxis = list(title = ""),yaxis = list(title = ""))
-      plt
-      
-      #Append colors based on full compression data. Need to append column of resistances at full compression -> get from the global d frame 
-      
-    })
+
     
 
-################TEMPERATURE PLOTS##################################################################################################################################################################################################################
+################TEMPERATURE PLOTS#########################
+  
   output$tempPlot <- renderPlotly({
-    
-    
+ 
     data <- amb
     dims <- dim(data)
     dim <- dims[1]
->>>>>>> Stashed changes
     
     
     data <- switch(input$tempSensors,
@@ -654,54 +669,32 @@ server <- function(input,output) {
                     "5 days" = 1440,
                     "1 month"= 8640, 
                     "all"    = dim)
-<<<<<<< Updated upstream
+
     
-    dims <- dim(data)
-    dim <- dims[1]
-    
-    #Create datelist 
-    
-    #date1 <- '07/07/2021'
-    #finaldate <- format(Sys.time(), "%m/%d")
-    
-    #construct compacted date list 
-    lowerbound <- dim-range
-    dates <- data[c(lowerbound:dim),c(1:1)]
-    dates <- dates[seq(1, range, (range/5))]
-    
-    print(c(lowerbound:dim))
-    #print(data[c(lowerbound:dim),c(1:3)])
-    #scale_x_discrete w/premade label set or scale_x_continuous() for xtick spacing adjustment 
-    #plot range needs to show tail end of data, not the first couple datapoints
-    #
-    
-    tempPlot <- ggplot(data[c(lowerbound:dim),c(1:3)] , aes(x=factor(data[c(lowerbound:dim),c(1:1)]),y=data[c(lowerbound:dim),c(2:2)])) + geom_line(aes(group=1),color='red') + labs(x = "Time (days)", y = "Temperature (C)")  + scale_x_discrete(breaks = c(dates)) + theme_minimal()   
-    tempPlot <- ggplotly(tempPlot)
-=======
+
     
     max <- as.numeric(max(data$Temperature..C.[(dim-range):dim],na.rm=TRUE))
     min <- as.numeric(min(data$Temperature..C.[(dim-range):dim],na.rm=TRUE))
-
+    
     tempTicks <- seq(min,max,((max-min)/10))
-
+    
     lowerbound <- dim-range
     dates <- data[c(lowerbound:dim),c(1:1)]
     dates <- dates[seq(1, range, (range/5))]
-
+    
     
     tempPlot <- ggplot(data[c(lowerbound:dim),c(1:3)] , aes(x=factor(data[c(lowerbound:dim),c(1:1)]),y=data[c(lowerbound:dim),c(2:2)])) + 
-    geom_line(aes(group=1),color='red') + labs(x = "Time (days)", y = "Temperature (C)")  + 
-    scale_x_discrete(breaks = c(dates)) +
-    scale_y_continuous(limits=c(tempTicks[1],tempTicks[11])) + theme_minimal()
->>>>>>> Stashed changes
-    tempPlot
+      geom_line(aes(group=1),color='red') + labs(x = "Time (days)", y = "Temperature (C)")  + 
+      scale_x_discrete(breaks = c(dates)) +
+      scale_y_continuous(limits=c(tempTicks[1],tempTicks[11])) + theme_minimal()
     
   })
   
   
   output$humgraph <- renderPlotly({
-    dims <- dim(amb)
+    dims <- dim(data)
     dim <- dims[1]
+    
     
     data <- switch(input$humSensors,
                    "Ambient_SD"  = amb,
@@ -724,11 +717,6 @@ server <- function(input,output) {
     max <- as.numeric(max(data$Humidity...RH.[(dim-range):dim],na.rm=TRUE))
     min <- as.numeric(min(data$Humidity...RH.[(dim-range):dim],na.rm=TRUE))
     
-<<<<<<< Updated upstream
-=======
-    humTicks <- seq(min,max,((max-min)/10))
-    
->>>>>>> Stashed changes
     #generate compactified datelist
     lowerbound <- dim-range
     dates <- data[c(lowerbound:dim),c(1:1)]
@@ -736,12 +724,10 @@ server <- function(input,output) {
     
     
     humgraph <- ggplot(data[c(lowerbound:dim),c(1:3)] , aes(x=factor(data[c(lowerbound:dim),c(1:1)]),y=data[c(lowerbound:dim),c(3:3)])) + 
-    geom_line(aes(group=1),color='red') + 
-    labs(x = "Time (days)", y = "Humidity (%RH)")  + 
-    scale_x_discrete(breaks = c(dates)) + 
-    scale_y_continuous(limits=c(humTicks[1],humTicks[11])) + theme_minimal()   
-    humpgrah <- ggplotly(humgraph)
-    humgraph
+      geom_line(aes(group=1),color='red') + 
+      labs(x = "Time (days)", y = "Humidity (%RH)")  + 
+      scale_x_discrete(breaks = c(dates)) + 
+      scale_y_continuous(limits=c(humTicks[1],humTicks[11])) + theme_minimal()   
   })  
   
   #shinyFileChoose(input, 'files', root=c(root='.'), filetypes=c('', '.txt', '.html', '.s2p', '.R', '.Rmd'))
@@ -749,7 +735,6 @@ server <- function(input,output) {
   output$htmlout <- renderUI({getPage()})
   
   
-########################################################################################################################################################################################################################################################################################################################################################  
   output$plot_access_web <- renderPlot({
     if (input$plot1 == "Stacked Bars") {
       ggplot(survey, aes(groupInput())) + 
