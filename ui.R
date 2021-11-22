@@ -72,7 +72,8 @@ ui <-
                                                      "Ambient_HP",
                                                      "Leakage_HP",
                                                      "Leakage2_HP",
-                                                     "All"))
+                                                     "All")),
+                                       dateInput("temp_date", label = h3("Select a Date"), value = "2021-11-01"),
                                      ),
                                      mainPanel(
                                        plotlyOutput(outputId = "tempPlot", height = "1000px", width = "900px")
@@ -178,13 +179,52 @@ ui <-
                           #  fluidRow(
                           #    plotlyOutput(outputId = "timePlot")
                           #  )
-                         
                             
                           )
                         )
                       )
              ),
+<<<<<<< Updated upstream
              tabPanel("Time domain plot",
+=======
+             tabPanel("Advanced RF Analysis",
+                      tabsetPanel(
+                        tabPanel("RF Analysis Part 1",
+                           fluidPage(     
+                            sidebarLayout(
+                              sidebarPanel(
+                                   #fileInput(
+                                  #   inputId = "RF1",
+                                  #   label = "S2p Files",
+                                  #   multiple = TRUE,
+                                  #   buttonLabel = "Browse...",
+                                  #   placeholder = "No file selected"
+                                  #), br(), 
+                                      actionButton("dir", 'select a folder'), 
+                                      actionButton("runRF1", "Run Analysis",class = "btn-success"), br(), br(),
+                                      actionButton("downloadRF1", "Download Report",class = "btn-success"),
+                      
+                                   ),
+                              mainPanel(
+                                textOutput(""),
+                                htmlOutput("RF1_analysis")
+                                #selectInput(inputId = "dataSelection",label= "Select dataset", choices = datafiles)
+                                
+                              ))
+                                 )),
+                        tabPanel("RF Anaslysis Part 2",
+                            sidebarPanel(
+                                  actionButton("runRF2", "Run Analysis",class = "btn-success"),
+                                  selectInput(inputId = "RF1_pth",label= "", choices = getwd()),
+                                  actionButton("dir", 'select a folder'),
+                                  actionButton("runRF1", "Run Analysis",class = "btn-success"), br(), br(),
+                                  actionButton("downloadRF1", "Download Report",class = "btn-success"),
+                                  dir <- getwd(),
+                                 ))
+                           )
+                        ),
+             tabPanel("TEC Plot",
+>>>>>>> Stashed changes
                       fluidPage(
                         sidebarLayout(
                           sidebarPanel(
@@ -200,13 +240,69 @@ ui <-
                             #plot goes here
                             #plotlyOutput(outputId = "timePlot")
                             
+<<<<<<< Updated upstream
+=======
+                            #tabsetPanel(id='TECTabs',type='tabs')
+                           
+                            #sliderInput(inputId='TECSlider','TEC cycle', min=0,5,value=2)
+                          
+                            uiOutput('slider'),
+                            
+                            fluidRow(12,
+                              #uiOutput('slider')
+                              column(6,plotlyOutput(outputId = "TEC_Analysis", height = "700px", width = "900px")),
+                              column(6,plotlyOutput(outputId = 'pads',width='50%',height="700px"),style='padding-left:100px; padding-right:1px; padding-top:5px; padding-bottom:5px')
+                            ),
+                            
+                            #plotlyOutput(outputId = "TEC_Analysis", height = "700px", width = "900px"),
+                            #splitLayout(cellWidths = c("80%", "20%"), plotlyOutput("TEC_Stats"), plotlyOutput(outputId = 'pads',width='50%',height="auto")),
+                            DTOutput("TEC_Stats", width = "90%",height = "auto")
+                            #plotlyOutput(outputId = 'pads',width='50%',height="auto")
+                            
+>>>>>>> Stashed changes
                           )
                         )
                       )
              ),
+<<<<<<< Updated upstream
              tabPanel("shinyFiles",
                       bootstrapPage(
                         shinyFilesButton('files', label='File select', title='Please select a file', multiple=FALSE)
                       ))
         
   )
+=======
+          tabPanel("Cycle Plot",
+                   fluidPage(
+                     sidebarLayout(
+                       sidebarPanel(
+                         fileInput(
+                           inputId = "Cycles_File",
+                           label = "Select Cycling Data",
+                           multiple = TRUE,
+                           buttonLabel = "Browse...",
+                           placeholder = "No file selected"
+                         ),
+                         fileInput(
+                           inputId = "padFile_cycles",
+                           label = "Select Pad Package Input File",
+                           multiple = FALSE,
+                           buttonLabel = "Browse...",
+                           placeholder = "No file selected"
+                         ),
+                         textInput("maxRC",label='Resistance Threshold',value='0.1'),
+                         checkboxInput("enableForce", "Show force trace", value = FALSE)
+                       ),
+                       mainPanel(
+                         fluidRow(12,
+                            column(6,plotlyOutput(outputId = "cyclePlot")),
+                            column(6,plotlyOutput(outputId = 'cycle_pads',width='50%',height="700px"))
+                         ),
+                         DTOutput("cycle_Stats", width = "90%",height = "auto")
+                         
+                       )
+                     )
+                   )
+                   )
+  )
+>>>>>>> Stashed changes

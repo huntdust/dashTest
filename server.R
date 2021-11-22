@@ -1,9 +1,18 @@
 library(shiny)
 library(here)
 library(rmarkdown)
+<<<<<<< Updated upstream
 #library(tidyverse)
 #library(shinyFiles)
 library(ggplot2)
+=======
+library(tidyverse)
+library(shinyFiles)
+library(fs)
+library(DT)
+library(plotly)
+library(abind)
+>>>>>>> Stashed changes
 
 analysispath <- "/opt/shiny-server/samples/sample-apps/dashtest/analysis"
 addResourcePath("tmpuser",getwd())
@@ -21,32 +30,7 @@ server <- function(input,output) {
   source(file.path("tempPlot.R"), local=TRUE)$value      #Temp Plot
   #source(file.path("humPlot.R"), local=TRUE)$value      #Temp Plot
   
-  groupInput <- reactive({
-    switch(input$group1,
-           "Student Status" = survey$status, 
-           "Country / Region of Origin" = survey$country, 
-           "Major" = survey$major)
-  })
-  
-  dataInput <- reactive({
-    switch(input$question1, 
-           "Email/chat with library staff" = survey$Q1.1_2, 
-           "Find books" = survey$Q1.1_7, 
-           "Search for articles" = survey$Q1.1_4, 
-           "Use subject / citation guides" = survey$Q1.1_6,
-           "Book a group study room" = survey$Q1.1_3)
-  })
-  
-  plotSensors <- reactive({
-    switch(input$humSensors,
-           "Ambient_SD",
-           "Gryffindor",
-           "Reliability",
-           "Ambient_HP",
-           "Leakage_HP",
-           "Leakage2_HP",
-           "All")
-  })
+
   
   timeScaleSelection <- reactive({
     switch(input$timescale,
@@ -55,7 +39,6 @@ server <- function(input,output) {
            "1 month", 
            "all")
   })
-  
   
   observeEvent(input$runAnalysis, {
     #should a seperate version of these scripts be kept with different file paths for the server? The paths are inherently different...
@@ -69,6 +52,10 @@ server <- function(input,output) {
     
   })
   
+<<<<<<< Updated upstream
+=======
+  
+>>>>>>> Stashed changes
   #S2p Drag/Drop handling 
   output$fileNames <- renderTable({
     # Return immediately if user doesn't select any files.
@@ -116,6 +103,14 @@ server <- function(input,output) {
     
     gg
   })
+<<<<<<< Updated upstream
+=======
+  #shinyFileChoose(input, 'files', root=c(root='.'), filetypes=c('', '.txt', '.html', '.s2p', '.R', '.Rmd'))
+  
+  
+  
+#######S2P PLOTTING VERSION 2##################################################################################################################################################################################################
+>>>>>>> Stashed changes
   
   output$s2pPlot <- renderPlotly({
     file <- input$csvFiles
@@ -141,6 +136,31 @@ server <- function(input,output) {
     plot <- ggplot(data, aes(x = f, y = db)) + geom_line(aes(group=1)) + labs(x = "Frequency", y = "Magntitude (dB)") + ggtitle('S11')
     plot
     
+<<<<<<< Updated upstream
+=======
+    fig <- plot_ly(data,x=~f,y=~db,type='scatter',mode='lines',name=names[1])
+    cnt<-1
+    
+    for (f in 2:numFiles) {
+      net <- skrf$Network(paths[cnt])
+      s11 <- net$s11
+      f <-  s11$f
+      db <- s11$s_db
+      data <- data.frame(f,db)
+      data$db <- unlist(data$db)
+      
+      #add_marker(data=Df_game, name="line2", x = ~Timestamp, y = ~CurrentRecognitionRate)
+      
+      fig <- fig %>% add_trace(data=data,x=~f,y=~db,mode='lines', name = names[cnt])
+    #  fig <- fig %>% add_markers(data=data,x=~f,y=~db, name = names[cnt],mode='lines')
+      cnt <- cnt+1
+    }
+    
+    fig <- fig %>% layout(title='S11',xaxis = list(title = 'Frequency (Ghz)'),yaxis = list(title = 'Magnitude of S11 (dB)'), legend = list(orientation="h",y=-0.5)) 
+    fig
+    
+    #RE-WRITE WITH PLOTLY SO THAT NAMES CAN BE ASSIGNED APPROPRIATELY 
+>>>>>>> Stashed changes
   })
   
   output$s2pPlot2 <- renderPlotly({
@@ -164,9 +184,14 @@ server <- function(input,output) {
     #data2$db2 <- unlist(data2$db2)
     #data2$db2 <- Re(data2$db2)
     
+<<<<<<< Updated upstream
     #Add new plot rather than overwriting 
     plot2 <- ggplot(data2, aes(x = f, y = db2)) + geom_line(aes(group=1)) + labs(x = "Frequency", y = "Magntitude (dB)") + ggtitle('S12')
     plot2
+=======
+    fig <- fig %>% layout(title='S12',legend = list(orientation="h",y=-0.5), xaxis = list(title = 'Frequency (Ghz)'),yaxis = list(title = 'Magnitude of S12 (dB)')) 
+    fig
+>>>>>>> Stashed changes
   })
   
   output$timePlot <- renderPlotly({
@@ -192,13 +217,424 @@ server <- function(input,output) {
     z <- x
     data <- data.frame(t,z)
     
+<<<<<<< Updated upstream
     tdr <- ggplot(data, aes(x = t, y = z)) + geom_line(aes(group=1)) + labs(x = "Time (s)", y = "Impedance (Ohm)") + ggtitle('Time domain conversion')
     tdr
+=======
+    tdr <- plot_ly(data,x=~t,y=~z,type='scatter',mode='lines',name=names[1])
+    cnt <- 1 
+    
+    for (f in 2:numFiles) {
+      net <- skrf$Network(paths[cnt])
+      s11 <- net$s11
+      s11_ext <- s11$extrapolate_to_dc()
+      t <- s11_ext$step_response()[[1]]
+      z <- s11_ext$step_response()[[2]]
+      
+      t<- t*10e9
+      x <- 50*(1+z)/(1-z)
+      z <- x
+      data <- data.frame(t,z)
+      tdr <- tdr %>% add_trace(data=data,y=~z,mode='lines', name = names[cnt])
+      
+      cnt <- cnt+1
+    
+    }
+    
+    tdr <- tdr %>% layout(title='Time Domain Conversion',xaxis=list(title='Time (s)'),yaxis=list(title='Impedance (Ohm)'),legend = list(orientation="h",y=-0.5)) 
+    tdr
+  
+  })
+    
+  
+################RF1 ANALYSIS##########################################################################################################################################################################################################
+  
+  output$RF1_analysis <- renderUI({
+    filePth <- getwd()
+    
+>>>>>>> Stashed changes
     
     
   })
+<<<<<<< Updated upstream
   
   output$tempPlot <- renderPlotly({
+=======
+
+  observeEvent(input$dir, {   
+    setwd(choose.dir("c:/")) #selecting a directory   
+    output$wd <- renderText(getwd())
+
+    input$RF1_pth <- getwd()
+    })
+  
+  observeEvent(input$runRF1, {
+    #Set path variable to be used in the data aggregation script 
+  
+  })
+  
+################RF2 ANALYSIS##########################################################################################################################################################################################################  
+  
+  output$RF2_analysis <- renderUI({
+    filePth <- getwd()
+  })
+  
+  observeEvent(input$dir2, {   
+    setwd(choose.dir("c:/")) #selecting a directory   
+    output$wd <- renderText(getwd())})
+  
+  observeEvent(input$runRF1, {
+    render(input = "C:/home/dashtest/RF_Analysis_Data_Aggregation.Rmd")
+    render(input = "RF_Analysis_Part1.Rmd")
+    
+  }) 
+  
+  
+
+###############TEC ANALYSIS##########################################################################################################################################################################################################
+  
+    output$TEC_Analysis <- renderPlotly({
+      
+    #introduce tab/TEC number feature - TEC_Analysis needs to accept plot # argument 
+     req(input$TECSlider)
+     cycle <- input$TECSlider
+     
+    
+     file <- input$TEC_File
+     data <- tools::file_ext(file$datapath)
+     
+     d <<- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
+     max_resistance <- as.double(input$maxR)
+    
+     # Get the columns
+     first_resistance_column <<- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
+     last_resistance_coluimn <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+     Force_column <- which(names(d)=="LdCel.0")              #Load Cell data - forces
+     cycleLength <- dim(d)[1]/numTabs()
+     
+     ay <- list(
+     tickfont = list(color='red'),
+     overlaying = "y",
+     side = "right",
+     title = "<b>Force</b> (lbs)"
+     )
+    
+     # Create the plot
+     plt <- plot_ly(data = d[(cycleLength*(cycle-1)):(cycleLength*cycle),], type = "scatter", mode = "lines")
+     for(i in first_resistance_column:last_resistance_coluimn){
+       plt <- plt %>% add_trace(x = ~External.Z.Delayed, y = d[(cycleLength*(cycle-1)):(cycleLength*cycle),i], name = names(d)[i])
+     }
+     d[((cycleLength*(cycle-1))):((cycleLength*cycle)),Force_column][1] <- 0
+     plt <- plt %>% add_trace(x= ~External.Z.Delayed,y=na.omit(d[((cycleLength*(cycle-1))):((cycleLength*cycle)),Force_column]),name = "Force", yaxis="y2",line=list(width=5,color='red'))      #Force trace
+         # Add labels and set range limit
+     plt_title <- c("Total Electrical Compliance")
+   
+     plt <- plt %>% layout(xaxis = list(title = "Distance (mils)"),
+                          yaxis = list(range = c(0,max_resistance),
+                                       title = c("Resistance (Ohms)")),
+                          title = plt_title,
+                          yaxis2 = ay,
+                          showlegend = FALSE,
+                          margin = list(b=20,t=10,r=50,l=50)
+                          )
+     plt
+   
+  })
+  
+    stats <-reactive({
+      #need a TEC input if going to split up the plots 
+      file <- input$TEC_File
+      data <- tools::file_ext(file$datapath)
+      cycle <- cycle()
+      cycleLength <- dim(d)[1]/numTabs() 
+      
+      print(cycle)
+      
+      d <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
+      max_resistance <- .1
+      
+      # Get the columns
+      first_resistance_column <- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
+      last_resistance_coluimn <- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+      Force_column <- which(names(d)=="LdCel.0")              #Load Cell data - forces
+      
+       #Search through the correct rows as set by cycle variable
+
+       ncol = last_resistance_coluimn-first_resistance_column
+       for (r in (((cycle-1)*cycleLength)+1):(cycleLength*cycle)){
+         for (c in 1:ncol) {
+           #print(d[r,c+first_resistance_column])
+           if (d[r,c+first_resistance_column]>0.1){
+             row <-r
+           } else {
+             #row <-2
+           }
+         }
+       }
+       row <- row+1
+       
+       
+       #TEC - point at which all pins drop below 100mOhm
+       avgTEC <- mean(as.double(d[row,c(first_resistance_column:last_resistance_coluimn)]))
+       stdTEC <- sd(as.double(d[row,c(first_resistance_column:last_resistance_coluimn)]))
+       df_TEC <- c(avgTEC,stdTEC,4*stdTEC,5*stdTEC,6*stdTEC,7*stdTEC)
+       
+       #Full Compression
+       avgC <- mean(as.double(d[cycle*cycleLength,c(first_resistance_column:last_resistance_coluimn)]))
+       stdC <- sd(as.double(d[cycle*cycleLength,c(first_resistance_column:last_resistance_coluimn)]))
+       df_Comp <- c(avgC,stdC,4*stdC,5*stdC,6*stdC,7*stdC)
+       
+       labels = c('mean', 'std', '4 sigma', '5 sigma', '6 sigma', '7 sigma')
+       headers = c('TEC', 'Full Compression')
+       
+       stats <- data.frame(metrics=labels,TEC = df_TEC, COMPRESSED = df_Comp)
+       #stats <- do.call(rbind.data.frame, stats)
+       #stats <- as.data.frame(stats)
+       
+       #stats <- matrix(unlist(stats),ncol=dim(stats)[2])
+       stats
+  })
+    
+
+    
+    output$pads <- renderPlotly({
+      cycle <- cycle()
+      cycleLength <- dim(d)[1]/numTabs() 
+      
+      file <- input$padFile
+      pattern <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
+      x_column <- na.omit(pattern['X'])
+      y_column <- na.omit(pattern['Y'])
+      
+      pattern <- pattern[0:dim(x_column)[1],]
+      
+      comp <- d[dim(d)[1],first_resistance_column:last_resistance_coluimn]
+      comp <- as.numeric(comp)
+      pattern <- cbind(pattern,'res'=comp)
+      
+      
+      print(dim(pattern))
+      #arr <- array(0,dim=c(dim(pattern)[1],(dim(pattern)[2]+1),cycle))
+      resData <- d[((cycle-1)+1):(cycle*cycleLength),first_resistance_column:last_resistance_coluimn,] #address each res set with resData[n,]
+      
+      
+      
+      temp <- resData[1,]
+      temp2 <- resData[2,]
+      sheet <- merge(pattern,temp)
+      sheet2 <- merge(pattern,temp2)
+      arr <- abind(sheet,sheet2,along=3)
+     
+      
+      for (sheet in 2:dim(resData)[1]) {
+        #Get resistance data for one cycle
+        temp <- resData[sheet,]
+  
+        #Append resistance data for each cyle to the pattern data to create a sheet
+        sheet <- merge(pattern,temp)
+  
+        #Append sheet to three dimensional array initialized outside of the loop
+        arr <- abind(arr,sheet, along = 3)
+      }
+      
+      print(arr)
+      print(dim(arr))
+       
+       #cbind might not work here - need to append multiple columns. Need to make multidimensional array with pattern (2d) + data  
+
+       
+       
+      #plt <- ggplot(data=pattern, aes(x=X,y=Y)) + geom_point() + scale_color_gradientn(colors = rainbow(10))
+      
+      #color = res, frame = cycle
+      plt <- plot_ly(data=pattern,x=~X,y=~Y,type = 'scatter',mode='markers',color=~res)
+      plt <- plt %>% layout(title='Pad position vs. resistance',xaxis = list(title = ""),yaxis = list(title = ""))
+      plt
+      
+      #Append colors based on full compression data. Need to append column of resistances at full compression -> get from the global d frame 
+      
+    })
+    
+    numTabs <- reactive({
+      file <- input$TEC_File
+      data <- tools::file_ext(file$datapath)
+      d <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
+      Force_column <- which(names(d)=="LdCel.0")
+      cnt<-1
+      
+      for (i in 1:dim(d[Force_column])[1]-1) {
+        if(isTRUE(((d[i,Force_column]-d[i+1,Force_column])>2))) {
+          cnt<-cnt+1
+        }}
+      cnt
+      
+    })
+    
+    cycle <- reactive({
+      currCycle <- input$TECSlider 
+      currCycle
+    })
+  
+    observeEvent(input$TEC_File,{
+      removeTab("TECTabs", target=input$TECTabs)
+      for (i in 1:numTabs()) {
+        appendTab("TECTabs",
+                  tabPanel(i,
+                           fluidPage(
+                             #could maybe pass cycle #argument 
+                             plotlyOutput(outputId = "TEC_Analysis", height = "1000px", width = "900px"),
+                             DTOutput("TEC_Stats", width = "100%",height = "auto")
+                           )), select=TRUE)
+      }
+    }) 
+    
+    output$TEC_Stats <- renderDT(
+      stats()
+    )
+    
+    #Tab handling for multiple TEC plot tabs 
+    # lapply(1:5, function(j) {
+    #   output[[paste0('out',j)]] <- renderPrint({
+    #     paste0('generated out ', j)
+    #   })
+    # })
+  
+    currTab <- reactive({
+      input$TECTabs
+    })
+    
+    output$slider <- renderUI({
+      req(numTabs())
+      sliderInput(inputId='TECSlider',"TEC cycle",min=0,max=numTabs(),value=1)
+    })
+    
+    
+################CYCLE PLOTS##########################################################################################################################################################################################################################
+
+    output$CyclesPlot <- renderPlotly({
+      
+      #introduce tab/TEC number feature - TEC_Analysis needs to accept plot # argument
+      
+      file <- input$Cycles_File
+      d <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
+      cycleLength <- dim(d)[1]
+      
+      max_resistance <- as.double(input$maxRC)
+      
+      
+      # Get the columns
+      first_resistance_column <<- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
+      last_resistance_coluimn <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+      Force_column <- which(names(d)=="LdCel.0")              #Load Cell data - forces
+      
+      ay <- list(
+        tickfont = list(color='red'),
+        overlaying = "y",
+        side = "right",
+        title = "<b>Force</b> (lbs)"
+      )
+      
+      # Create the plot
+      numCycles <- dim(d)[1]
+      plt <- plot_ly(data = d[1:cycleLength,], type = "scatter", mode = "lines")
+      for(i in first_resistance_column:last_resistance_coluimn){
+        plt <- plt %>% add_trace(x = d[1], y = d[1:cycleLength,i], name = names(d)[i])
+      }
+      
+      #d[((cycleLength*(cycle-1))):((cycleLength*cycle)),Force_column][1] <- 0
+      if (input$enableForce) {
+        plt <- plt %>% add_trace(x= d[1],y=na.omit(d[1:cycleLength,Force_column]),name = "Force", yaxis="y2",line=list(width=1,color='red'))      #Force trace
+      }
+      
+      # Add labels and set range limit
+      plt_title <- c("Cycles vs DCR")
+      
+      plt <- plt %>% layout(xaxis = list(title = "Distance (mils)"),
+                            yaxis = list(range = c(0,max_resistance),
+                                         title = c("Resistance (Ohms)")),
+                            title = plt_title,
+                            yaxis2 = ay,
+                            showlegend = FALSE,
+                            #Legend fundamentally overlaps the yaxis2 label - this is a known issue 
+                            legend = list(orientation="s",xanchor="center"),
+                            margin = list(b=20,t=10,r=100,l=50)
+      )
+      
+      plt
+    })
+    
+    output$cycle_Stats <- renderDT(
+      cycle_stats()
+    )
+    
+    cycle_stats <-reactive({
+      #need a TEC input if going to split up the plots 
+      file <- input$Cycles_File
+      data <- tools::file_ext(file$datapath)
+      
+      
+      d <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
+      max_resistance <- as.double(input$maxRC)
+      cycleLength <- dim(d)[1]
+      
+      # Get the columns
+      first_resistance_column <- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
+      last_resistance_coluimn <- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+      Force_column <- which(names(d)=="LdCel.0")              #Load Cell data - forces
+      
+      #First - First Cycle
+      avg_last <- mean(as.double(d[1,c(first_resistance_column:last_resistance_coluimn)]))
+      std_last <- sd(as.double(d[1,c(first_resistance_column:last_resistance_coluimn)]))
+      df_first <- c(avg_last,std_last,4*std_last,5*std_last,6*std_last,7*std_last)
+      
+      #Last Cycle
+      avg_last <- mean(as.double(d[cycleLength,c(first_resistance_column:last_resistance_coluimn)]))
+      std_last <- sd(as.double(d[cycleLength,c(first_resistance_column:last_resistance_coluimn)]))
+      df_last <- c(avg_last,std_last,4*std_last,5*std_last,6*std_last,7*std_last)
+      
+      labels = c('mean', 'std', '4 sigma', '5 sigma', '6 sigma', '7 sigma')
+      headers = c('TEC', 'Full Compression')
+      
+      cycle_stats <- data.frame(metrics=labels, FIRST_CYCLE = df_first, LAST_CYCLE = df_last)
+      cycle_stats
+    })
+    
+    
+    output$cycle_pads <- renderPlotly({
+      file <- input$Cycles_File
+      
+      d <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
+      cycleLength <- dim(d)[1]
+      
+      patternFile <- input$padFile_cycles
+      pattern <- read.delim(patternFile$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
+      x_column <- na.omit(pattern['X'])
+      y_column <- na.omit(pattern['Y'])
+      
+      pattern <- pattern[0:dim(x_column)[1],]
+      
+      comp <- d[cycleLength,first_resistance_column:last_resistance_coluimn]
+      comp <- as.numeric(comp)
+      pattern <- cbind(pattern,'res'=comp)
+     
+      
+      plt <- plot_ly(data=pattern,x=~X,y=~Y,type = 'scatter',mode='markers',color=~res)
+      plt <- plt %>% layout(title='Pad position vs. resistance',xaxis = list(title = ""),yaxis = list(title = ""))
+      plt
+      
+      #Append colors based on full compression data. Need to append column of resistances at full compression -> get from the global d frame 
+      
+    })
+    
+
+################TEMPERATURE PLOTS##################################################################################################################################################################################################################
+  output$tempPlot <- renderPlotly({
+    
+    
+    data <- amb
+    dims <- dim(data)
+    dim <- dims[1]
+>>>>>>> Stashed changes
     
     
     data <- switch(input$tempSensors,
@@ -209,11 +645,16 @@ server <- function(input,output) {
                    "Leakage_HP"  = Le1,
                    "Leakage2_HP" = Le2,
                    "All"         = test)
+    
+    dims <- dim(data)
+    dim <- dims[1]
+    
     range <- switch(input$timescaleTemp,
                     "1 day" = 288,
                     "5 days" = 1440,
                     "1 month"= 8640, 
                     "all"    = dim)
+<<<<<<< Updated upstream
     
     dims <- dim(data)
     dim <- dims[1]
@@ -236,6 +677,23 @@ server <- function(input,output) {
     
     tempPlot <- ggplot(data[c(lowerbound:dim),c(1:3)] , aes(x=factor(data[c(lowerbound:dim),c(1:1)]),y=data[c(lowerbound:dim),c(2:2)])) + geom_line(aes(group=1),color='red') + labs(x = "Time (days)", y = "Temperature (C)")  + scale_x_discrete(breaks = c(dates)) + theme_minimal()   
     tempPlot <- ggplotly(tempPlot)
+=======
+    
+    max <- as.numeric(max(data$Temperature..C.[(dim-range):dim],na.rm=TRUE))
+    min <- as.numeric(min(data$Temperature..C.[(dim-range):dim],na.rm=TRUE))
+
+    tempTicks <- seq(min,max,((max-min)/10))
+
+    lowerbound <- dim-range
+    dates <- data[c(lowerbound:dim),c(1:1)]
+    dates <- dates[seq(1, range, (range/5))]
+
+    
+    tempPlot <- ggplot(data[c(lowerbound:dim),c(1:3)] , aes(x=factor(data[c(lowerbound:dim),c(1:1)]),y=data[c(lowerbound:dim),c(2:2)])) + 
+    geom_line(aes(group=1),color='red') + labs(x = "Time (days)", y = "Temperature (C)")  + 
+    scale_x_discrete(breaks = c(dates)) +
+    scale_y_continuous(limits=c(tempTicks[1],tempTicks[11])) + theme_minimal()
+>>>>>>> Stashed changes
     tempPlot
     
   })
@@ -253,20 +711,35 @@ server <- function(input,output) {
                    "Leakage_HP"  = Le1,
                    "Leakage2_HP" = Le2,
                    "All")
+    
+    dims <- dim(data)
+    dim <- dims[1]
+    
     range <- switch(input$timescaleHum,
                     "1 day" = 288,
                     "5 days" = 1440,
                     "1 month"= 8640, 
                     "all"    = dim)
     
+    max <- as.numeric(max(data$Humidity...RH.[(dim-range):dim],na.rm=TRUE))
+    min <- as.numeric(min(data$Humidity...RH.[(dim-range):dim],na.rm=TRUE))
     
+<<<<<<< Updated upstream
+=======
+    humTicks <- seq(min,max,((max-min)/10))
+    
+>>>>>>> Stashed changes
     #generate compactified datelist
     lowerbound <- dim-range
     dates <- data[c(lowerbound:dim),c(1:1)]
     dates <- dates[seq(1, range, (range/5))]
     
     
-    humgraph <- ggplot(data[c(lowerbound:dim),c(1:3)] , aes(x=factor(data[c(lowerbound:dim),c(1:1)]),y=data[c(lowerbound:dim),c(3:3)])) + geom_line(aes(group=1),color='red') + labs(x = "Time (days)", y = "Humidity (%RH)")  + scale_x_discrete(breaks = c(dates)) + theme_minimal()   
+    humgraph <- ggplot(data[c(lowerbound:dim),c(1:3)] , aes(x=factor(data[c(lowerbound:dim),c(1:1)]),y=data[c(lowerbound:dim),c(3:3)])) + 
+    geom_line(aes(group=1),color='red') + 
+    labs(x = "Time (days)", y = "Humidity (%RH)")  + 
+    scale_x_discrete(breaks = c(dates)) + 
+    scale_y_continuous(limits=c(humTicks[1],humTicks[11])) + theme_minimal()   
     humpgrah <- ggplotly(humgraph)
     humgraph
   })  
@@ -276,6 +749,7 @@ server <- function(input,output) {
   output$htmlout <- renderUI({getPage()})
   
   
+########################################################################################################################################################################################################################################################################################################################################################  
   output$plot_access_web <- renderPlot({
     if (input$plot1 == "Stacked Bars") {
       ggplot(survey, aes(groupInput())) + 
