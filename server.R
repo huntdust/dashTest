@@ -7,19 +7,18 @@ library(fs)
 library(DT)
 library(plotly)
 
+#test comment 
+
 options(shiny.maxRequestSize=30*1024^2)
 
-analysispath <- "/opt/shiny-server/samples/sample-apps/dashtest/analysis"
-reticulate::use_virtualenv("/opt/shiny-server/samples/sample-apps/dashtest/testenv",required=TRUE")
-reticulate::use_python("/usr/bin/python2.7")
-
+analysispath <- "C:/home/dashTest/Analysis/"
 addResourcePath("tmpuser",getwd())
 
 server <- function(input,output,session) {
   
   tabIndex <- reactiveVal(0)
   volumes = getVolumes()
-  basepath <- '/opt/shiny-server/samples/sample-apps/dashtest/'
+  basepath <- 'C:/home/dashTest/dashTest/'
   ev <- reactiveValues(data=NULL)
   
   source(file.path("samplePlot.R"), local = TRUE)$value  #sample plot
@@ -724,7 +723,6 @@ server <- function(input,output,session) {
     lowerbound <- dim-range
     dates <- data[c(lowerbound:dim),c(1:1)]
     dates <- dates[seq(1, range, (range/5))]
-    
     
     humgraph <- ggplot(data[c(lowerbound:dim),c(1:3)] , aes(x=factor(data[c(lowerbound:dim),c(1:1)]),y=data[c(lowerbound:dim),c(3:3)])) + 
       geom_line(aes(group=1),color='red') + 
