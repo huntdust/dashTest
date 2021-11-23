@@ -7,6 +7,8 @@ library(fs)
 library(DT)
 library(plotly)
 
+#test comment 
+
 options(shiny.maxRequestSize=30*1024^2)
 
 analysispath <- "C:/home/dashTest/Analysis/"
@@ -501,9 +503,9 @@ server <- function(input,output,session) {
       
       pattern <- pattern[0:dim(x_column)[1],]
       
-      # comp <- d[dim(d)[1],first_resistance_column:last_resistance_coluimn]
-      # comp <- as.numeric(comp)
-      # pattern <- cbind(pattern,'res'=comp)
+      comp <- d[dim(d)[1],first_resistance_column:last_resistance_coluimn]
+      comp <- as.numeric(comp)
+      pattern <- cbind(pattern,'res'=comp)
       
        # arr <- array(0,dim=c(dim(pattern)[1],(dim(pattern)[2]+1),cycle))
        # 
@@ -660,6 +662,10 @@ server <- function(input,output,session) {
                    "Leakage_HP"  = Le1,
                    "Leakage2_HP" = Le2,
                    "All"         = test)
+    
+    dims <- dim(data)
+    dim <- dims[1]
+    
     range <- switch(input$timescaleTemp,
                     "1 day" = 288,
                     "5 days" = 1440,
@@ -667,26 +673,22 @@ server <- function(input,output,session) {
                     "all"    = dim)
 
     
-    dims <- dim(data)
-    dim <- dims[1]
+
     
     max <- as.numeric(max(data$Temperature..C.[(dim-range):dim],na.rm=TRUE))
     min <- as.numeric(min(data$Temperature..C.[(dim-range):dim],na.rm=TRUE))
     
     tempTicks <- seq(min,max,((max-min)/10))
-
-    #All timescaling broken 
+    
     lowerbound <- dim-range
     dates <- data[c(lowerbound:dim),c(1:1)]
     dates <- dates[seq(1, range, (range/5))]
     
-    #print(dates)
     
     tempPlot <- ggplot(data[c(lowerbound:dim),c(1:3)] , aes(x=factor(data[c(lowerbound:dim),c(1:1)]),y=data[c(lowerbound:dim),c(2:2)])) + 
-    geom_line(aes(group=1),color='red') + labs(x = "Time (days)", y = "Temperature (C)")  + 
-    scale_x_discrete(breaks = c(dates)) + scale_y_discrete(breaks=c(tempTicks)) +theme_minimal()    #add y breaks dependent on temp range
-    #tempPlot <- ggplotly(tempPlot,dynamicTicks=TRUE)
-    tempPlot
+      geom_line(aes(group=1),color='red') + labs(x = "Time (days)", y = "Temperature (C)")  + 
+      scale_x_discrete(breaks = c(dates)) +
+      scale_y_continuous(limits=c(tempTicks[1],tempTicks[11])) + theme_minimal()
     
   })
   
@@ -704,25 +706,29 @@ server <- function(input,output,session) {
                    "Leakage_HP"  = Le1,
                    "Leakage2_HP" = Le2,
                    "All")
+    
+    dims <- dim(data)
+    dim <- dims[1]
+    
     range <- switch(input$timescaleHum,
                     "1 day" = 288,
                     "5 days" = 1440,
                     "1 month"= 8640, 
                     "all"    = dim)
     
-    
-    dims <- dim(data)
-    dim <- dims[1]
+    max <- as.numeric(max(data$Humidity...RH.[(dim-range):dim],na.rm=TRUE))
+    min <- as.numeric(min(data$Humidity...RH.[(dim-range):dim],na.rm=TRUE))
     
     #generate compactified datelist
     lowerbound <- dim-range
     dates <- data[c(lowerbound:dim),c(1:1)]
     dates <- dates[seq(1, range, (range/5))]
     
-    
-    humgraph <- ggplot(data[c(lowerbound:dim),c(1:3)] , aes(x=factor(data[c(lowerbound:dim),c(1:1)]),y=data[c(lowerbound:dim),c(3:3)])) + geom_line(aes(group=1),color='red') + labs(x = "Time (days)", y = "Humidity (%RH)")  + scale_x_discrete(breaks = c(dates)) + theme_minimal()   
-    humpgrah <- ggplotly(humgraph)
-    humgraph
+    humgraph <- ggplot(data[c(lowerbound:dim),c(1:3)] , aes(x=factor(data[c(lowerbound:dim),c(1:1)]),y=data[c(lowerbound:dim),c(3:3)])) + 
+      geom_line(aes(group=1),color='red') + 
+      labs(x = "Time (days)", y = "Humidity (%RH)")  + 
+      scale_x_discrete(breaks = c(dates)) + 
+      scale_y_continuous(limits=c(humTicks[1],humTicks[11])) + theme_minimal()   
   })  
   
   #shinyFileChoose(input, 'files', root=c(root='.'), filetypes=c('', '.txt', '.html', '.s2p', '.R', '.Rmd'))
