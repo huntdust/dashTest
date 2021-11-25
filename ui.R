@@ -9,14 +9,15 @@ library(bslib)
 library(shinyFiles)
 library(DT)
 
-datapath <- "/mnt/Gryffindor/Data_and_Results"
-analysispath <- "/opt/shiny-server/samples/sample-apps/dashtest/analysis"
-RMDPath <- "/opt/shiny-server/samples/sample-apps/dashtest/rmd"
+datapath <- "C:/Users/huntdust/Desktop/ShinyServer/"
+analysispath <- "C:/home/dashTest/Analysis/"
+RMDPath <- "C:/home/dashTest/rmd/"
 datafiles <- list.files(datapath)
 analysisfiles <- list.files(analysispath)
 analysistypes <- list.files(RMDPath)
 
-setwd("/opt/shiny-server/samples/sample-apps/dashtest")
+setwd("C:/home/dashTest")
+
 ui <- 
   navbarPage("Data visualization and analysis tools",id='tabs', collapsible = TRUE, inverse = TRUE, theme = shinytheme("cosmo"),
              tabPanel("Temperature/Humidity Plots",
@@ -42,8 +43,7 @@ ui <-
                                                      "Ambient_HP",
                                                      "Leakage_HP",
                                                      "Leakage2_HP",
-                                                     "All")),
-                                       dateInput("temp_date", label = h3("Select a Date"), value = "2021-11-01"),
+                                                     "All"))
                                      ),
                                      mainPanel(
                                        plotlyOutput(outputId = "tempPlot", height = "1000px", width = "900px")
@@ -146,6 +146,7 @@ ui <-
                           #  fluidRow(
                           #    plotlyOutput(outputId = "timePlot")
                           #  )
+                         
                             
                           )
                         )
@@ -164,6 +165,7 @@ ui <-
                                   #   buttonLabel = "Browse...",
                                   #   placeholder = "No file selected"
                                   #), br(), 
+                                    
                                       actionButton("dir", 'select a folder'), 
                                       actionButton("runRF1", "Run Analysis",class = "btn-success"), br(), br(),
                                       actionButton("downloadRF1", "Download Report",class = "btn-success"),
@@ -190,7 +192,7 @@ ui <-
              tabPanel("TEC Plot",
                       fluidPage(
                         sidebarLayout(
-                          sidebarPanel(
+                          sidebarPanel(width=3,
                             fileInput(
                               inputId = "TEC_File",
                               label = "Select TEC Data",
@@ -218,23 +220,20 @@ ui <-
                              #   )
                              # })))
                             
-                            #tabsetPanel(id='TECTabs',type='tabs')
-                           
-                            #sliderInput(inputId='TECSlider','TEC cycle', min=0,5,value=2)
-                          
+                        
                             uiOutput('slider'),
                             
                             fluidRow(12,
-                              #uiOutput('slider')
-                              column(6,plotlyOutput(outputId = "TEC_Analysis", height = "700px", width = "900px")),
-                              column(6,plotlyOutput(outputId = 'pads',width='50%',height="700px"),style='padding-left:100px; padding-right:1px; padding-top:5px; padding-bottom:5px')
+                                     #uiOutput('slider')
+                                     column(6,plotlyOutput(outputId = "TEC_Analysis", height = "700px", width = "900px")),
+                                     column(6,plotlyOutput(outputId = 'pads',width='70%',height="700px"),style='padding-left:300px; padding-right:0px; padding-top:0px; padding-bottom:0px')
                             ),
                             
-                            #plotlyOutput(outputId = "TEC_Analysis", height = "700px", width = "900px"),
-                            #splitLayout(cellWidths = c("80%", "20%"), plotlyOutput("TEC_Stats"), plotlyOutput(outputId = 'pads',width='50%',height="auto")),
+        
                             DTOutput("TEC_Stats", width = "90%",height = "auto")
-                            #plotlyOutput(outputId = 'pads',width='50%',height="auto")
                             
+                          
+                         
                           )
                         )
                       )   
@@ -250,22 +249,11 @@ ui <-
                            buttonLabel = "Browse...",
                            placeholder = "No file selected"
                          ),
-                         fileInput(
-                           inputId = "padFile_cycles",
-                           label = "Select Pad Package Input File",
-                           multiple = FALSE,
-                           buttonLabel = "Browse...",
-                           placeholder = "No file selected"
-                         ),
                          textInput("maxRC",label='Resistance Threshold',value='0.1'),
                          checkboxInput("enableForce", "Show force trace", value = FALSE)
                        ),
                        mainPanel(
-                         fluidRow(12,
-                            column(6,plotlyOutput(outputId = "cyclePlot")),
-                            column(6,plotlyOutput(outputId = 'cycle_pads',width='50%',height="700px"))
-                         ),
-                         DTOutput("cycle_Stats", width = "90%",height = "auto")
+                         plotlyOutput(outputId='CyclesPlot')
                          
                        )
                      )
