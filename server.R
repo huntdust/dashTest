@@ -6,13 +6,16 @@ library(shinyFiles)
 library(fs)
 library(DT)
 library(plotly)
+library(abind)
 
 #test comment 
 
 options(shiny.maxRequestSize=30*1024^2)
 
-analysispath <- "C:/home/dashTest/Analysis/"
+analysispath <- "/opt/shiny-server/samples/sample-apps/dashtest/analysis"
 addResourcePath("tmpuser",getwd())
+reticulate::user_virtualenv("/opt/shiny-server/samples/sample-apps/dashtest/testenv,",required=TRUE)
+reticulate::use_python("/usr/bin/python2.7")
 
 server <- function(input,output,session) {
   
@@ -462,16 +465,18 @@ server <- function(input,output,session) {
            if (d[r,c+first_resistance_column]>0.1){
              row <-r
            } else {
-             #row <-2
+             row <-2
            }
          }
        }
-       row <- row+1
+       row
        
-       
+       set <- t(d[row,c(first_resistance_column:last_resistance_coluimn)])
+       subset <- set[set[,1]<max_resistance]
+       #d[row,c(first_resistance_column:last_resistance_coluimn)>max_resistance] <- max_resistance 
        #TEC - point at which all pins drop below 100mOhm
-       avgTEC <- mean(as.double(d[row,c(first_resistance_column:last_resistance_coluimn)]))
-       stdTEC <- sd(as.double(d[row,c(first_resistance_column:last_resistance_coluimn)]))
+       avgTEC <- mean(subset)
+       stdTEC <- sd(subset)
        df_TEC <- c(avgTEC,stdTEC,4*stdTEC,5*stdTEC,6*stdTEC,7*stdTEC)
        
        #Full Compression
@@ -495,6 +500,7 @@ server <- function(input,output,session) {
     output$pads <- renderPlotly({
       cycle <- cycle()
       cycleLength <- dim(d)[1]/numTabs() 
+      y_scale <- as.double(input$maxR)
       
       file <- input$padFile
       pattern <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
@@ -503,31 +509,46 @@ server <- function(input,output,session) {
       
       pattern <- pattern[0:dim(x_column)[1],]
       
-      comp <- d[dim(d)[1],first_resistance_column:last_resistance_coluimn]
-      comp <- as.numeric(comp)
-      pattern <- cbind(pattern,'res'=comp)
-      
-       # arr <- array(0,dim=c(dim(pattern)[1],(dim(pattern)[2]+1),cycle))
-       # 
-       # resData <- d[((cycle-1)+1):(cycle*cycleLength),first_resistance_column:last_resistance_coluimn,] #address each res set with resData[n,]
-       # for (sheet in 1:dim(resData)[1]) {
-       #   #Get resistance data for one cycle
-       #   temp <- resData[sheet,]
-       #   
-       #   #Append resistance data for each cyle to the pattern data to create a sheet 
-       #   
-       #   
-       #   #Append sheet to three dimensional array initialized outside of the loop
-       #   
-       # }
-       
-       #cbind might not work here - need to append multiple columns. Need to make multidimensional array with pattern (2d) + data  
+      # comp <- d[dim(d)[1],first_resistance_column:last_resistance_coluimn]
+      # comp <- as.numeric(comp)
+      # pattern <- cbind(pattern,'res'=comp)
 
-       
-       
-      #plt <- ggplot(data=pattern, aes(x=X,y=Y)) + geom_point() + scale_color_gradientn(colors = rainbow(10))
+      #arr <- array(0,dim=c(dim(pattern)[1],(dim(pattern)[2]+1),cycle))
       
-      plt <- plot_ly(data=pattern,x=~X,y=~Y,type = 'scatter',mode='markers',color=~res)
+      resData <- d[((cycle-1)+1):(cycle*cycleLength),first_resistance_column:last_resistance_coluimn,] #address each res set with resData[n,]
+      
+      temp <- resData[1,]
+      temp2 <- resData[2,]
+      sheet1 <- pattern
+      sheet2<- pattern
+      sheet1$res <- t(temp)
+      sheet2$res <- t(temp2)
+      sheet1$cycle <- 1
+      sheet2$cycle <- 2
+  
+      #arr <- abind(sheet1,sheet2,along=3)
+      arr <- rbind(sheet1,sheet2)
+  
+      #Get pattern sheet, add one column of resistance data, and then stack sheets together. To add one column... 
+      for (i in 2:dim(resData)[1]) {
+        #Get resistance data for one cycle
+        temp <- resData[i,]
+        
+        
+        #Append resistance data for each cyle to the pattern data to create a sheet
+        sheet <- pattern
+        sheet$res <- t(temp)
+        sheet$cycle <- i
+        #Append sheet to three dimensional array initialized outside of the loop
+        arr <- rbind(arr,sheet)
+      }
+      res_c <- which(names(arr)=='res')
+      arr[arr$res>y_scale,res_c] <- y_scale
+      
+       
+      #To animate this, need to have exactly one variable that corresponds to the X/Y position sheet
+      #Or, could append sheets vertically and have an additional column label for cycle, and set frame to cycle 
+      plt <- plot_ly(data=arr,x=~X,y=~Y,type = 'scatter',mode='markers',color=~res,frame=~cycle)
       plt <- plt %>% layout(title='Pad pattern',xaxis = list(title = ""),yaxis = list(title = ""))
       plt
       
