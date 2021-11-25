@@ -192,7 +192,7 @@ ui <-
              tabPanel("TEC Plot",
                       fluidPage(
                         sidebarLayout(
-                          sidebarPanel(
+                          sidebarPanel(width=3,
                             fileInput(
                               inputId = "TEC_File",
                               label = "Select TEC Data",
@@ -220,14 +220,20 @@ ui <-
                              #   )
                              # })))
                             
-                            #tabsetPanel(id='TECTabs',type='tabs')
-                           
-                            #sliderInput(inputId='TECSlider','TEC cycle', min=0,5,value=2)
-                            
+                        
                             uiOutput('slider'),
-                            plotlyOutput(outputId = "TEC_Analysis", height = "1000px", width = "900px"),
-                            DTOutput("TEC_Stats", width = "90%",height = "auto"), br(),
-                            plotlyOutput(outputId = 'pads',width='50%',height="auto")
+                            
+                            fluidRow(12,
+                                     #uiOutput('slider')
+                                     column(6,plotlyOutput(outputId = "TEC_Analysis", height = "700px", width = "900px")),
+                                     column(6,plotlyOutput(outputId = 'pads',width='70%',height="700px"),style='padding-left:300px; padding-right:0px; padding-top:0px; padding-bottom:0px')
+                            ),
+                            
+        
+                            DTOutput("TEC_Stats", width = "90%",height = "auto")
+                            
+                          
+                         
                           )
                         )
                       )   
