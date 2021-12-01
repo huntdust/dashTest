@@ -2,12 +2,12 @@ library(shiny)
 library(reticulate)
 
 
-amb <- read.csv(file="\\\\pilly\\Advanced_Signal_Delivery\\Personal_Folders\\Dustin\\tempData_ambient.txt",sep='\t', stringsAsFactors=FALSE,encoding = 'UTF-8')
-rel <- read.csv(file="\\\\pilly\\Advanced_Signal_Delivery\\Personal_Folders\\Dustin\\tempData_reliability.txt",sep='\t', stringsAsFactors=FALSE,encoding = 'UTF-8')
-gry <- read.csv(file="\\\\pilly\\Advanced_Signal_Delivery\\Personal_Folders\\Dustin\\tempData_gryffindor.txt",sep='\t', stringsAsFactors=FALSE,encoding = 'UTF-8')
-HPa <- read.csv(file="\\\\pilly\\Advanced_Signal_Delivery\\Personal_Folders\\Dustin\\tempData_HPambient.txt",sep='\t', stringsAsFactors=FALSE,encoding = 'UTF-8')
-Le1 <- read.csv(file="\\\\pilly\\Advanced_Signal_Delivery\\Personal_Folders\\Dustin\\tempData_Leak1.txt",sep='\t', stringsAsFactors=FALSE,encoding = 'UTF-8')
-Le2 <- read.csv(file="\\\\pilly\\Advanced_Signal_Delivery\\Personal_Folders\\Dustin\\tempData_Leak2.txt",sep='\t', stringsAsFactors=FALSE,encoding = 'UTF-8')
+amb <- read.csv(file="/mnt/Dustin/tempData_ambient.txt",sep='\t', stringsAsFactors=FALSE,encoding = 'UTF-8')
+rel <- read.csv(file="/mnt/Dustin/tempData_reliability.txt",sep='\t', stringsAsFactors=FALSE,encoding = 'UTF-8')
+gry <- read.csv(file="/mnt/Dustin/tempData_gryffindor.txt",sep='\t', stringsAsFactors=FALSE,encoding = 'UTF-8')
+HPa <- read.csv(file="/mnt/Dustin/tempData_HPambient.txt",sep='\t', stringsAsFactors=FALSE,encoding = 'UTF-8')
+Le1 <- read.csv(file="/mnt/Dustin/tempData_Leak1.txt",sep='\t', stringsAsFactors=FALSE,encoding = 'UTF-8')
+Le2 <- read.csv(file="/mnt/Dustin/tempData_Leak2.txt",sep='\t', stringsAsFactors=FALSE,encoding = 'UTF-8')
 
 
 test <- ggplot(amb, aes(y=Temperature..C., x=Time)) +
