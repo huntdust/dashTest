@@ -20,7 +20,7 @@ options(shiny.maxRequestSize=30*1024^2)
 
 analysispath <- "/opt/shiny-server/samples/sample-apps/dashtest/analysis"
 addResourcePath("tmpuser",getwd())
-reticulate::user_virtualenv("/opt/shiny-server/samples/sample-apps/dashtest/testenv,",required=TRUE)
+reticulate::use_virtualenv("/opt/shiny-server/samples/sample-apps/dashtest/testenv,",required=TRUE)
 reticulate::use_python("/usr/bin/python2.7")
 
 server <- function(input,output,session) {
