@@ -9,13 +9,13 @@ library(bslib)
 library(shinyFiles)
 library(DT)
 
+
 datapath <- "/mnt/Gryffindor/Data_and_Results"
 analysispath <- "/opt/shiny-server/samples/sample-apps/dashtest/analysis"
 RMDPath <- "/opt/shiny-server/samples/sample-apps/dashtest/rmd"
 datafiles <- list.files(datapath)
 analysisfiles <- list.files(analysispath)
 analysistypes <- list.files(RMDPath)
-
 setwd("/opt/shiny-server/samples/sample-apps/dashtest")
 
 ui <- 
@@ -25,7 +25,7 @@ ui <-
                         tabsetPanel(
                           tabPanel("Temperature", br(),
                                    sidebarLayout(
-                                     sidebarPanel(
+                                     sidebarPanel(width=3,
                                        radioButtons(
                                          inputId = "timescaleTemp",
                                          label = "Timescale",
@@ -46,12 +46,12 @@ ui <-
                                                      "All"))
                                      ),
                                      mainPanel(
-                                       plotlyOutput(outputId = "tempPlot", height = "1000px", width = "900px")
+                                       plotlyOutput(outputId = "tempPlot", height = "800px", width = "900px")
                                      )
                                    )),
                           tabPanel("Humidity", br(),
                                    sidebarLayout(
-                                     sidebarPanel(
+                                     sidebarPanel(width=3,
                                        radioButtons(
                                          inputId = "timescaleHum",
                                          label = "Timescale",
@@ -121,10 +121,8 @@ ui <-
                               buttonLabel = "Browse...",
                               placeholder = "No file selected"
                             ),
-                            shinyFilesButton("Btn_GetFile", "Choose a file" ,
-                                             title = "Please select a file:", multiple = FALSE,
-                                             buttonType = "default", class = NULL),
-                          
+                            downloadButton("report", "Generate report"), 
+                            #checkboxInput("includeStats_s2p", "include statistical analysis", value = FALSE)
                           ),
                           mainPanel(
                             fluidRow(
@@ -158,18 +156,12 @@ ui <-
                            fluidPage(     
                             sidebarLayout(
                               sidebarPanel(
-                                   #fileInput(
-                                  #   inputId = "RF1",
-                                  #   label = "S2p Files",
-                                  #   multiple = TRUE,
-                                  #   buttonLabel = "Browse...",
-                                  #   placeholder = "No file selected"
-                                  #), br(), 
-                                    
-                                      actionButton("dir", 'select a folder'), 
-                                      actionButton("runRF1", "Run Analysis",class = "btn-success"), br(), br(),
+                                      #actionButton("dir", 'select a folder'), 
+                                      shinyDirButton("dir", "Input directory", "Upload"),
+                                      verbatimTextOutput("dir", placeholder = TRUE),
+                                      actionButton("runRF1", "Generate Report",class = "btn-success"), br(), br(),
                                       actionButton("downloadRF1", "Download Report",class = "btn-success"),
-                      
+                                      
                                    ),
                               mainPanel(
                                 textOutput(""),
@@ -207,7 +199,8 @@ ui <-
                               buttonLabel = "Browse...",
                               placeholder = "No file selected"
                             ),
-                            textInput("maxR",label='Resistance Threshold',value='0.1')
+                            textInput("maxR",label='Resistance Threshold',value='0.1'),
+                            downloadButton("TECReport", "Generate report")
                             #shinyFilesButton('TEC_File',label = 'File select', title = 'Please select file', multiple = FALSE)
                           ),
                           mainPanel(
@@ -223,7 +216,7 @@ ui <-
                         
                             uiOutput('slider'),
                             
-                            fluidRow(12,
+                            fluidRow(
                                      #uiOutput('slider')
                                      column(6,plotlyOutput(outputId = "TEC_Analysis", height = "700px", width = "900px")),
                                      column(6,plotlyOutput(outputId = 'pads',width='70%',height="700px"),style='padding-left:300px; padding-right:0px; padding-top:0px; padding-bottom:0px')
@@ -231,9 +224,6 @@ ui <-
                             
         
                             DTOutput("TEC_Stats", width = "90%",height = "auto")
-                            
-                          
-                         
                           )
                         )
                       )   
