@@ -1,0 +1,264 @@
+---
+title: "S-parameter analysis"
+output: html_document
+params:
+  s2pfile: NA
+  stats: NA
+---
+
+```{r,echo=FALSE, eval=TRUE}
+#S11 plot 
+skrf <- import("skrf")
+    plt <- import("matplotlib.pyplot")
+    file <- params$s2pfile
+    paths <- file$datapath
+    numFiles <- dim(params$s2pfile)[1]
+    names <- file$name
+    
+    net <- skrf$Network(file$datapath[1])
+    s11 <- net$s11
+    db <- s11$s_db
+    f <-  s11$f
+    data <- data.frame(f,db)
+    
+    
+    fig <- plot_ly(data,x=~f,y=~db,type='scatter',mode='lines',name=names[1])
+    cnt<-2
+    
+    for (f in 2:numFiles) {
+      #file 
+      net <- skrf$Network(paths[cnt])
+      s11 <- net$s11
+      f <-  s11$f
+      db <- s11$s_db
+      data <- data.frame(f,db)
+      data$db <- unlist(data$db)
+      
+      #add_marker(data=Df_game, name="line2", x = ~Timestamp, y = ~CurrentRecognitionRate)
+      
+      fig <- fig %>% add_trace(data=data,x=~f,y=~db,mode='lines', name = names[cnt])
+    #  fig <- fig %>% add_markers(data=data,x=~f,y=~db, name = names[cnt],mode='lines')
+      cnt <- cnt+1
+    }
+    
+    fig <- fig %>% layout(title='S11', legend = list(orientation="h",y=-0.3)) 
+    fig
+```
+
+
+```{r,echo=FALSE, eval=TRUE}
+ skrf <- import("skrf")
+    plt <- import("matplotlib.pyplot")
+    file <- params$s2pfile
+    paths <- file$datapath
+    numFiles <- dim(params$s2pfile)[1]
+    names <- file$name
+    
+    net <- skrf$Network(file$datapath[1])
+    s12 <- net$s12
+    db <- s12$s_db
+    f <-  s12$f
+    data <- data.frame(f,db)
+    
+    fig <- plot_ly(data,x=~f,y=~db,type='scatter',mode='lines',name=names[1])
+    cnt<-2
+    
+    for (f in 2:numFiles) {
+      net <- skrf$Network(paths[cnt])
+      s12 <- net$s12
+      f <-  s12$f
+      db <- s12$s_db
+      data <- data.frame(f,db)
+      data$db <- unlist(data$db)
+      
+      fig <- fig %>% add_trace(data=data,y=~db,mode='lines', name = names[cnt])
+      cnt <- cnt+1
+    }
+    
+    
+    fig <- fig %>% layout(title='S12',legend = list(orientation="h",y=-0.3)) 
+    fig
+    
+    
+```
+
+```{r,echo=FALSE,eval=TRUE}
+  skrf <- import("skrf")
+    file <- params$s2pfile
+    paths <- file$datapath
+    skrf <- import("skrf")
+    numFiles <- dim(params$s2pfile)[1]
+    names <- file$name
+    
+    net <- skrf$Network(paths[1])
+    s11 <- net$s11
+    s11_ext <- s11$extrapolate_to_dc()
+    t <- s11_ext$step_response()[[1]]
+    z <- s11_ext$step_response()[[2]]
+    
+    t<- t*10e9
+    x <- 50*(1+z)/(1-z)
+    z <- x
+    data <- data.frame(t,z)
+    
+    tdr <- plot_ly(data,x=~t,y=~z,type='scatter',mode='lines',name=names[1])
+    cnt <- 2
+    
+    for (f in 2:numFiles) {
+      net <- skrf$Network(paths[cnt])
+      s11 <- net$s11
+      s11_ext <- s11$extrapolate_to_dc()
+      t <- s11_ext$step_response()[[1]]
+      z <- s11_ext$step_response()[[2]]
+      
+      t<- t*10e9
+      x <- 50*(1+z)/(1-z)
+      z <- x
+      data <- data.frame(t,z)
+      tdr <- tdr %>% add_trace(data=data,y=~z,mode='lines', name = names[cnt])
+      
+      cnt <- cnt+1
+    
+    }
+    
+    tdr <- tdr %>% layout(title='Time Domain Conversion',xaxis=list(title='Time (s)'),yaxis=list(title='Impedance (Ohm)'),legend = list(orientation="h",y=-0.3)) 
+    tdr
+```
+
+
+```{r setup,echo=FALSE,eval=FALSE}
+#THIS CHUNK TO EXECUTE CONDITIONALLY BASED ON WHETHER OR NOT THE USER SELECTS STATISTICS CHECKBOX 
+
+# Clear R session
+
+#this breaks interaction with params variables
+#rm(list=ls())
+
+# Prevents java OOM errors when trying to create the excel files
+knitr::opts_chunk$set(echo = TRUE, fig.height = 7, fig.width = 10)
+options(java.parameters = "-Xmx10g")
+
+#library(openxlsx)
+#library(xlsx)
+library(readxl)
+library(dplyr)
+library(data.table)
+library(gtools) # enables the mixed sort function
+library(ggplot2)
+library(reshape2)
+library(plotly)
+library(readbulk)
+library(stringr)
+library(tictoc)
+#options(digits = 14)
+options(dplyr.summarise.inform = FALSE)
+##########################
+# User defined variables #
+
+
+print('running aggregation')
+
+
+#strip path to get paths 
+file <- params$s2pfile
+#paths <- file$datapath
+#pth <- strsplit(paths[1],"/")
+pth <- "C:/Users/huntdust/Desktop/s2p_test_website/"
+#pth <- file$datapath
+
+#save location needs to be user choosable 
+save_location <- pth
+
+company <- "Gore"
+
+cable_name <- "Keyence Integration Test"
+
+# Total number of cycles the cable experienced during the collection of this data set
+total_cycles <- 1362
+
+# Sets the Number of cycles between measurements; allows use of less data to lower computation time
+cycs_between_meas <- 5
+
+# declare how many cables are included in this data set so that the max phase shift between cables can be correctly calculated
+num_cables <- 1
+
+
+# Specify if this data is from a Falcon test and should therefore have the adpater losses subtracted from the results
+is_falcon <- FALSE
+
+# Set the value and indicator for whether or not to use further sample reduction
+reduction_indicator <- FALSE
+reduction_count <- 5
+
+
+# Speficy whether or not to print the name of every data file used during compliation
+print_data_names <- FALSE
+
+
+# Freq to check insertion loss and return loss at to see how it varies over time
+desired_freq_high <- 53
+desired_freq_low  <- 10
+
+
+# Specify if which S11 and S21 specs should be used in the plots
+  # values can be low, mid, high, or mx44
+s11_spec <- "Falcon"
+s21_spec <- "Falcon"
+
+# End of User Defined Variables #
+#################################
+
+
+# Create the path to the s2p data
+#s2p_pth <- paste(pth,"s2p_data", sep = "")
+s2p_pth <- params$s2pfile$datapath
+s2p_pth <- str_split(s2p_pth,"/")
+s2p_pth <- paste(strings[[1]][1],strings[[1]][2],sep="/")
+
+
+# Get the date the data was taken
+first_file <- paste(s2p_pth,mixedsort(sort(list.files(s2p_pth)))[1], sep = "/")
+data_date <- file.mtime(first_file)  # gets date and time the file was created
+data_date <- as.character(data_date)
+data_date <- strsplit(data_date, split = " ")[[1]][1]
+
+# Names of the variables in the data files from the VNA
+n_ri <- c("Freq_GHz","S11_Real","S11_Img","S21_Real","S21_Img","S12_Real","S12_Img","S22_Real","S22_Img")
+n_pm <- c("Freq_GHz","S11_dB","S11_Phase_Deg","S21_dB","S21_Phase_Deg","S12_dB","S12_Phase_Deg","S22_dB","S22_Phase_Deg")
+
+# Get the number of data files and their names in order
+order <- mixedsort(sort(list.files(s2p_pth)))
+num_files <- length(order)
+
+# Subset the data based on the reduction indicator and reduction coutn variables
+if(reduction_indicator){
+  order <- order[seq(1, length(order), reduction_count)]
+  cycs_between_meas <- cycs_between_meas * reduction_count
+}
+
+# Get file creation times
+s2p_pth_times <- dir(s2p_pth, full.names=TRUE)
+filetimes <- (file.info(s2p_pth_times)$mtime)
+filetimes <- sort(filetimes)
+
+# Create a data frame of the filenames and filetimes so filetimes can late rbe appended to the master df
+fileinfo <- data.frame(order, filetimes)
+names(fileinfo) <- c("filenames", "filetimes")
+
+s2p_pth
+first_file
+
+data_date
+num_files
+
+
+# End of User Defined Variables #
+#################################
+
+```
+
+
+
+
+
+
