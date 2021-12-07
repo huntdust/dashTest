@@ -10,7 +10,10 @@ library(abind)
 
 #test comment 
 #test comment 2
-###
+###############
+
+############
+
 
 options(shiny.maxRequestSize=30*1024^2)
 
@@ -20,7 +23,8 @@ addResourcePath("tmpuser",getwd())
 server <- function(input,output,session) {
   
   tabIndex <- reactiveVal(0)
-  volumes = getVolumes()
+  #volumes <- getVolumes()
+  volumes <- c(Home = fs::path_home())
   basepath <- 'C:/home/dashTest/dashTest/'
   ev <- reactiveValues(data=NULL)
   
@@ -135,8 +139,7 @@ server <- function(input,output,session) {
   })
   #shinyFileChoose(input, 'files', root=c(root='.'), filetypes=c('', '.txt', '.html', '.s2p', '.R', '.Rmd'))
   
-  
-  
+
 #######S2P PLOTTING VERSION 2######################
   
   output$s2pPlot <- renderPlotly({
@@ -155,24 +158,27 @@ server <- function(input,output,session) {
     
     
     fig <- plot_ly(data,x=~f,y=~db,type='scatter',mode='lines',name=names[1])
-    cnt<-1
+    cnt<-2
     
-    for (f in 2:numFiles) {
-      net <- skrf$Network(paths[cnt])
-      s11 <- net$s11
-      f <-  s11$f
-      db <- s11$s_db
-      data <- data.frame(f,db)
-      data$db <- unlist(data$db)
-      
-      #add_marker(data=Df_game, name="line2", x = ~Timestamp, y = ~CurrentRecognitionRate)
-      
-      fig <- fig %>% add_trace(data=data,x=~f,y=~db,mode='lines', name = names[cnt])
-    #  fig <- fig %>% add_markers(data=data,x=~f,y=~db, name = names[cnt],mode='lines')
-      cnt <- cnt+1
-    }
+    if (numFiles>1) {
+      for (f in 2:numFiles) {
+        #file 
+        net <- skrf$Network(paths[cnt])
+        s11 <- net$s11
+        f <-  s11$f
+        db <- s11$s_db
+        data <- data.frame(f,db)
+        data$db <- unlist(data$db)
+        
+        #add_marker(data=Df_game, name="line2", x = ~Timestamp, y = ~CurrentRecognitionRate)
+        
+        fig <- fig %>% add_trace(data=data,x=~f,y=~db,mode='lines', name = names[cnt])
+      #  fig <- fig %>% add_markers(data=data,x=~f,y=~db, name = names[cnt],mode='lines')
+        cnt <- cnt+1
+      }}
     
-    fig <- fig %>% layout(title='S11', legend = list(orientation="h",y=-0.3)) 
+    fig <- fig %>% layout(title='S11',xaxis=list(title='Frequency (Ghz)'),yaxis=list(title='Magnitude of S11 (dB)'),legend = list(orientation="h",y=-0.3)) 
+    fig <- fig %>% animation_opts(frame = 20)
     fig
     
     #RE-WRITE WITH PLOTLY SO THAT NAMES CAN BE ASSIGNED APPROPRIATELY 
@@ -194,22 +200,23 @@ server <- function(input,output,session) {
     data <- data.frame(f,db)
     
     fig <- plot_ly(data,x=~f,y=~db,type='scatter',mode='lines',name=names[1])
-    cnt<-1
+    cnt<-2
     
-    for (f in 2:numFiles) {
-      net <- skrf$Network(paths[cnt])
-      s12 <- net$s12
-      f <-  s12$f
-      db <- s12$s_db
-      data <- data.frame(f,db)
-      data$db <- unlist(data$db)
-      
-      fig <- fig %>% add_trace(data=data,y=~db,mode='lines', name = names[cnt])
-      cnt <- cnt+1
-    }
+    if (numFiles>1) {
+      for (f in 2:numFiles) {
+        net <- skrf$Network(paths[cnt])
+        s12 <- net$s12
+        f <-  s12$f
+        db <- s12$s_db
+        data <- data.frame(f,db)
+        data$db <- unlist(data$db)
+        
+        fig <- fig %>% add_trace(data=data,y=~db,mode='lines', name = names[cnt])
+        cnt <- cnt+1
+      }}
     
     
-    fig <- fig %>% layout(title='S12',legend = list(orientation="h",y=-0.3)) 
+    fig <- fig %>% layout(title='S12',xaxis=list(title='Frequency (Ghz)'),yaxis=list(title='Magnitude of S12(dB)'),legend = list(orientation="h",y=-0.3)) 
     fig
   })
     
@@ -234,144 +241,122 @@ server <- function(input,output,session) {
     data <- data.frame(t,z)
     
     tdr <- plot_ly(data,x=~t,y=~z,type='scatter',mode='lines',name=names[1])
-    cnt <- 1 
+    cnt <- 2 
     
-    for (f in 2:numFiles) {
-      net <- skrf$Network(paths[cnt])
-      s11 <- net$s11
-      s11_ext <- s11$extrapolate_to_dc()
-      t <- s11_ext$step_response()[[1]]
-      z <- s11_ext$step_response()[[2]]
-      
-      t<- t*10e9
-      x <- 50*(1+z)/(1-z)
-      z <- x
-      data <- data.frame(t,z)
-      tdr <- tdr %>% add_trace(data=data,y=~z,mode='lines', name = names[cnt])
-      
-      cnt <- cnt+1
-    
-    }
+    if (numFiles>1) {
+      for (f in 2:numFiles) {
+        net <- skrf$Network(paths[cnt])
+        s11 <- net$s11
+        s11_ext <- s11$extrapolate_to_dc()
+        t <- s11_ext$step_response()[[1]]
+        z <- s11_ext$step_response()[[2]]
+        
+        t<- t*10e9
+        x <- 50*(1+z)/(1-z)
+        z <- x
+        data <- data.frame(t,z)
+        tdr <- tdr %>% add_trace(data=data,y=~z,mode='lines', name = names[cnt])
+        
+        cnt <- cnt+1
+    }}
     
     tdr <- tdr %>% layout(title='Time Domain Conversion',xaxis=list(title='Time (s)'),yaxis=list(title='Impedance (Ohm)'),legend = list(orientation="h",y=-0.3)) 
     tdr
-  
-  })
     
+    #test
+    # if(!is.null(input$fileOpen)){
+    #   inFile <- input$s2pFiles
+    #   old_name <- inFile$datapath
+    #   dirstr <- dirname(inFile$datapath)
+    #   new_name <- paste(dirstr, inFile$name,sep="/")
+    #   file.rename(old_name, new_name)
+    #   print(new_name)
+    # }
+  })
   
   
-  
-  
-############S2P PLOTTING OLD#####################
-  # output$s2pPlot <- renderPlotly({
-  #   file <- input$csvFiles
-  #   print(file$datapath)
-  #   data <- tools::file_ext(file$datapath)
-  #   
-  #   req(file)
-  #   validate(need(data=="s2p","Please upload an s2p file"))
-  #   s2pdata <- read.csv(file$datapath)
-  #   print(file$datapath)
-  #   
-  #   skrf <- import("skrf")
-  #   plt <- import("matplotlib.pyplot")
-  #   net <- skrf$Network(file$datapath)
-  # 
-  #   s11 <- net$s11
-  #   f <- s11$f
-  #   db <- s11$s_db
-  #   data <- data.frame(f,db)
-  #   data$db <- unlist(data$db)
-  #   print(db)
-  #   
-  #   #+ scale_x_continuous(trans = 'log10') + scale_y_continuous(trans = 'log10')
-  #   plot <- ggplot(data, aes(x = f, y = db)) + geom_line(aes(group=1)) + labs(x = "Frequency", y = "Magntitude (dB)") + ggtitle('S11')
-  #   plot
-  #   
-  # })
-  # 
-  # output$s2pPlot2 <- renderPlotly({
-  #   file <- input$csvFiles
-  #   data <- tools::file_ext(file$datapath)
-  #   
-  #   req(file)
-  #   validate(need(data=="s2p","Please upload an s2p file"))
-  #   s2pdata <- read.csv(file$datapath)
-  #   print(file$datapath)
-  #   
-  #   skrf <- import("skrf")
-  #   plt <- import("matplotlib.pyplot")
-  #   net <- skrf$Network(file$datapath)
-  #   
-  #   s12 <- net$s12
-  #   f <- s12$f
-  #   db2 <- s12$s_db
-  #   
-  #   data2 <- data.frame(f,db2)
-  #   #data2$db2 <- unlist(data2$db2)
-  #   #data2$db2 <- Re(data2$db2)
-  #   
-  #   #Add new plot rather than overwriting 
-  #   plot2 <- ggplot(data2, aes(x = f, y = db2)) + geom_line(aes(group=1)) + labs(x = "Frequency", y = "Magntitude (dB)") + ggtitle('S12')
-  #   plot2
-  #})
-  
-  # output$timePlot <- renderPlotly({
-  #   file <- input$csvFiles
-  #   data <- tools::file_ext(file$datapath)
-  #   
-  #   req(file)
-  #   validate(need(data=="s2p","Please upload an s2p file"))
-  #   s2pdata <- read.csv(file$datapath)
-  #   print(file$datapath)
-  #   
-  #   skrf <- import("skrf")
-  #   plt <- import("matplotlib.pyplot")
-  #   net <- skrf$Network(file$datapath)
-  #   
-  #   s11 <- net$s11
-  #   s11_ext <- s11$extrapolate_to_dc()
-  #   t <- s11_ext$step_response()[[1]]
-  #   z <- s11_ext$step_response()[[2]]
-  #   
-  #   t<- t*10e9
-  #   x <- 50*(1+z)/(1-z)
-  #   z <- x
-  #   data <- data.frame(t,z)
-  #   
-  #   tdr <- ggplot(data, aes(x = t, y = z)) + geom_line(aes(group=1)) + labs(x = "Time (s)", y = "Impedance (Ohm)") + ggtitle('Time domain conversion')
-  #   tdr
-  #   
-  #   
-  # })
 
-
+  ##################report handler##########################
+  
+  output$report <- downloadHandler(
+    # For PDF output, change this to "report.pdf"
+    filename = "report.html",
+    content = function(file) {
+      # Copy the report file to a temporary directory before processing it, in
+      # case we don't have write permissions to the current working dir (which
+      # can happen when deployed).
+      tempReport <- file.path(tempdir(), "s2pRreport.Rmd")
+      file.copy("s2pReport.Rmd", tempReport, overwrite = TRUE)
+      
+      # Set up parameters to pass to Rmd document
+      params <- list(s2pfile = input$s2pFiles, stats = input$includeStats_s2p)
+      
+      # Knit the document, passing in the `params` list, and eval it in a
+      # child of the global environment (this isolates the code in the document
+      # from the code in this app).
+      rmarkdown::render(tempReport, output_file = file,
+                        params = params,
+                        envir = new.env(parent = globalenv())
+      )
+    }
+  )
+  
   
 ################RF1 ANALYSIS##############################
+#first get path from path input selector, then use it to run/render aggregated data, then...
+#get dir from regular fileInput
   
-  output$RF1_analysis <- renderUI({
-    filePth <- getwd()
-    
-    
-    render(input = "C:/home/dashtest/RF_Analysis_Data_Aggregation.Rmd")
-    #Delay(10000)
-    #render(input = "C:/home/dashtest/RF_Analysis_Part1.Rmd")
-    
-  })
 
-  observeEvent(input$dir, {   
-    setwd(choose.dir("c:/")) #selecting a directory   
-    output$wd <- renderText(getwd())
+  
+  ##############file input########################
+  
+   global <- reactiveValues(datapath = getwd())
 
-    input$RF1_pth <- getwd()
-    })
+   dir <- reactive(input$dir)
+
+   output$dir <- renderText({
+      global$datapath
+   })
+
+   observeEvent(ignoreNULL = TRUE,
+                eventExpr = {
+                  input$dir
+                },
+                handlerExpr = {
+                  if (!"path" %in% names(dir())) return()
+                  home <- normalizePath("~")
+                  global$datapath <-
+                  file.path(home, paste(unlist(dir()$path[-1]), collapse = .Platform$file.sep))
+  
+                })
+
+   RF1_pth <- reactive({
+     dir <- input$RF1_select
+     dir
+   })
+  
+  shinyDirChoose(
+    input,
+    'dir',
+    roots = volumes,
+    filetypes = c('', 'txt', 'bigWig', "tsv", "csv", "bw","s2p")
+  )
+  ###########################################################
+  ###################aggregation############################
   
   observeEvent(input$runRF1, {
-    #Set path variable to be used in the data aggregation script 
-  
+    rmarkdown::render(input = "C:/home/dashtest/RF_Analysis_Data_Aggregation.Rmd",params=list(pth = input$dir))
+    
+    
+    #render(input="C:/home/dashtest/RF_Analysis_Part1.Rmd")
   })
   
-################RF2 ANALYSIS##############################  
+  
+  
+  ##########################################################
+  
+  
+################RF2 ANALYSIS#################################
   
   output$RF2_analysis <- renderUI({
     filePth <- getwd()
@@ -389,7 +374,7 @@ server <- function(input,output,session) {
   
   
 
-###############TEC ANALYSIS##############################
+###############TEC ANALYSIS###########################################
   
     output$TEC_Analysis <- renderPlotly({
       
@@ -401,7 +386,7 @@ server <- function(input,output,session) {
      file <- input$TEC_File
      data <- tools::file_ext(file$datapath)
      
-     d <<- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
+     d <<- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE,skip=22)
      max_resistance <- as.double(input$maxR)
     
      # Get the columns
@@ -448,7 +433,7 @@ server <- function(input,output,session) {
       
       print(cycle)
       
-      d <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
+      d <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE, skip=22)
       max_resistance <- .1
       
       # Get the columns
@@ -463,7 +448,7 @@ server <- function(input,output,session) {
          for (c in 1:ncol) {
            #print(d[r,c+first_resistance_column])
            if (d[r,c+first_resistance_column]>0.1){
-             row <-r
+             row <- r
            } else {
              row <-2
            }
@@ -496,17 +481,27 @@ server <- function(input,output,session) {
   })
     
 
-    
+    #render pad package 
     output$pads <- renderPlotly({
       cycle <- cycle()
       cycleLength <- dim(d)[1]/numTabs() 
       y_scale <- as.double(input$maxR)
       
+      #read the input pad pattern
       file <- input$padFile
-      pattern <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
+      pattern <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE,skip=2)
+      
+      
+     if ("x" %in% colnames(pattern)) {
+        pattern <- rename(pattern,"X.1"="X")
+        pattern <- rename(pattern,"Y"="y")
+        pattern <- rename(pattern,"X"="x")
+
+     }
       x_column <- na.omit(pattern['X'])
       y_column <- na.omit(pattern['Y'])
       
+      #remove junk
       pattern <- pattern[0:dim(x_column)[1],]
       
       # comp <- d[dim(d)[1],first_resistance_column:last_resistance_coluimn]
@@ -550,6 +545,7 @@ server <- function(input,output,session) {
       #Or, could append sheets vertically and have an additional column label for cycle, and set frame to cycle 
       plt <- plot_ly(data=arr,x=~X,y=~Y,type = 'scatter',mode='markers',color=~res,frame=~cycle)
       plt <- plt %>% layout(title='Pad pattern',xaxis = list(title = ""),yaxis = list(title = ""))
+      plt <- plt %>% animation_opts(frame=20)
       plt
       
       #Append colors based on full compression data. Need to append column of resistances at full compression -> get from the global d frame 
@@ -559,7 +555,7 @@ server <- function(input,output,session) {
     numTabs <- reactive({
       file <- input$TEC_File
       data <- tools::file_ext(file$datapath)
-      d <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
+      d <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE,skip=22)
       Force_column <- which(names(d)=="LdCel.0")
       cnt<-1
       
@@ -609,6 +605,30 @@ server <- function(input,output,session) {
       sliderInput(inputId='TECSlider',"TEC cycle",min=0,max=numTabs(),value=1)
     })
     
+#################report handler###########################
+   
+     output$TECReport <- downloadHandler(
+      # For PDF output, change this to "report.pdf"
+      filename = "TECReport.html",
+      content = function(file) {
+        # Copy the report file to a temporary directory before processing it, in
+        # case we don't have write permissions to the current working dir (which
+        # can happen when deployed).
+        tempReport <- file.path(tempdir(), "TECReport.Rmd")
+        file.copy("TECReport.Rmd", tempReport, overwrite = TRUE)
+        
+        # Set up parameters to pass to Rmd document
+        params <- list(TEC_File = input$TEC_File, padFile = input$padFile, maxR = input$maxR, TECSlider=input$TECSlider,stats=stats(),numTabs = numTabs(), cycle=cycle())
+        
+        # Knit the document, passing in the `params` list, and eval it in a
+        # child of the global environment (this isolates the code in the document
+        # from the code in this app).
+        rmarkdown::render(tempReport, output_file = file,
+                          params = params,
+                          envir = new.env(parent = globalenv())
+        )
+      }
+    )
     
 ################CYCLE PLOTS##############################
 
@@ -617,7 +637,7 @@ server <- function(input,output,session) {
       #introduce tab/TEC number feature - TEC_Analysis needs to accept plot # argument
       
       file <- input$Cycles_File
-      d <<- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE)
+      d <<- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE, skip=22)
       cycleLength <- dim(d)[1]
       
       max_resistance <- as.double(input$maxRC)
@@ -739,6 +759,8 @@ server <- function(input,output,session) {
     
     max <- as.numeric(max(data$Humidity...RH.[(dim-range):dim],na.rm=TRUE))
     min <- as.numeric(min(data$Humidity...RH.[(dim-range):dim],na.rm=TRUE))
+    
+    humTicks <- seq(min,max,((max-min)/10))
     
     #generate compactified datelist
     lowerbound <- dim-range

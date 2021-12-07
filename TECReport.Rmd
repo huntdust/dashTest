@@ -1,0 +1,152 @@
+---
+title: "TEC Analysis"
+output: html_document
+params:
+  TEC_File: TRUE
+  padFile: TRUE
+  maxR: TRUE
+  TECSlider: TRUE 
+  stats: TRUE
+  numTabs: TRUE
+  cycle: TRUE
+---
+
+```{r, echo=FALSE,figures-side,warning = FALSE}
+     library(cowplot)
+
+     cycle <- params$TECSlider
+     
+    
+     file <- params$TEC_File
+     data <- tools::file_ext(file$datapath)
+     
+     d <<- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE,skip=22)
+     max_resistance <- as.double(params$maxR)
+    
+     # Get the columns
+     first_resistance_column <<- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
+     last_resistance_coluimn <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+     Force_column <- which(names(d)=="LdCel.0")              #Load Cell data - forces
+     cycleLength <- dim(d)[1]/params$numTabs
+     
+     ay <- list(
+     tickfont = list(color='red'),
+     overlaying = "y",
+     side = "right",
+     title = "<b>Force</b> (lbs)"
+     )
+    
+     # Create the plot
+     plt <- plot_ly(data = d[(cycleLength*(cycle-1)):(cycleLength*cycle),], type = "scatter", mode = "lines")
+     for(i in first_resistance_column:last_resistance_coluimn){
+       plt <- plt %>% add_trace(x = ~External.Z.Delayed, y = d[(cycleLength*(cycle-1)):(cycleLength*cycle),i], name = names(d)[i])
+     }
+     d[((cycleLength*(cycle-1))):((cycleLength*cycle)),Force_column][1] <- 0
+     plt <- plt %>% add_trace(x= ~External.Z.Delayed,y=na.omit(d[((cycleLength*(cycle-1))):((cycleLength*cycle)),Force_column]),name = "Force", yaxis="y2",line=list(width=5,color='red'))      #Force trace
+         # Add labels and set range limit
+     plt_title <- c("Total Electrical Compliance")
+   
+     plt <- plt %>% layout(xaxis = list(title = "Distance (mils)"),
+                          yaxis = list(range = c(0,max_resistance),
+                                       title = c("Resistance (Ohms)")),
+                          title = plt_title,
+                          yaxis2 = ay,
+                          showlegend = FALSE,
+                          margin = list(b=20,t=10,r=50,l=50)
+                          )
+     TEC_plt <- plt
+     #TEC_plt
+     
+     
+     
+     
+     ###############################PAD PACKAGE PLOT#########################################
+     
+      cycle <- params$cycle
+      cycleLength <- dim(d)[1]/params$numTabs 
+      y_scale <- as.double(params$maxR)
+      
+      #read the params pad pattern
+      file <- params$padFile
+      pattern <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE,skip=2)
+      
+      
+     if ("x" %in% colnames(pattern)) {
+        pattern <- rename(pattern,"X.1"="X")
+        pattern <- rename(pattern,"Y"="y")
+        pattern <- rename(pattern,"X"="x")
+
+     }
+      x_column <- na.omit(pattern['X'])
+      y_column <- na.omit(pattern['Y'])
+      
+      #remove junk
+      pattern <- pattern[0:dim(x_column)[1],]
+      
+      # comp <- d[dim(d)[1],first_resistance_column:last_resistance_coluimn]
+      # comp <- as.numeric(comp)
+      # pattern <- cbind(pattern,'res'=comp)
+
+      #arr <- array(0,dim=c(dim(pattern)[1],(dim(pattern)[2]+1),cycle))
+      
+      resData <- d[((cycle-1)+1):(cycle*cycleLength),first_resistance_column:last_resistance_coluimn,] #address each res set with resData[n,]
+      
+      temp <- resData[1,]
+      temp2 <- resData[2,]
+      sheet1 <- pattern
+      sheet2<- pattern
+      sheet1$res <- t(temp)
+      sheet2$res <- t(temp2)
+      sheet1$cycle <- 1
+      sheet2$cycle <- 2
+  
+      #arr <- abind(sheet1,sheet2,along=3)
+      arr <- rbind(sheet1,sheet2)
+  
+      #Get pattern sheet, add one column of resistance data, and then stack sheets together. To add one column... 
+      for (i in 2:dim(resData)[1]) {
+        #Get resistance data for one cycle
+        temp <- resData[i,]
+        
+        
+        #Append resistance data for each cyle to the pattern data to create a sheet
+        sheet <- pattern
+        sheet$res <- t(temp)
+        sheet$cycle <- i
+        #Append sheet to three dimensional array initialized outside of the loop
+        arr <- rbind(arr,sheet)
+      }
+      res_c <- which(names(arr)=='res')
+      arr[arr$res>y_scale,res_c] <- y_scale
+      
+       
+      #To animate this, need to have exactly one variable that corresponds to the X/Y position sheet
+      #Or, could append sheets vertically and have an additional column label for cycle, and set frame to cycle 
+      plt <- plot_ly(data=arr,x=~X,y=~Y,type = 'scatter',mode='markers',color=~res,frame=~cycle)
+      plt <- plt %>% layout(title='Pad pattern',xaxis = list(title = ""),yaxis = list(title = ""))
+      
+      #plt
+      
+      
+      subplot(TEC_plt,plt,widths=c(0.8,0.2),margin = 0.07)     
+   
+
+```
+
+
+
+```{r, echo=FALSE,warning = FALSE}
+library(knitr)
+kable(params$stats)
+```
+
+
+
+```{r pressure, echo=FALSE}
+#plot(pressure)
+```
+
+
+ 
+  
+    

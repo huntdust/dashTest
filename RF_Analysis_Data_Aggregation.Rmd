@@ -3,11 +3,16 @@ title: "RF Cable Analysis"
 author: "Andrew Yokubaitis"
 output: html_document
 #date: "`r format(Sys.time(), '%d %B %Y')`"
+params: 
+  pth: true
+editor_options:
+  chunk_output_type: console
 ---
 
-```{r setup, include=FALSE}
+```{r,echo=TRUE}
 # Clear R session
-rm(list=ls())
+
+#rm(list=ls())
 
 # Prevents java OOM errors when trying to create the excel files
 knitr::opts_chunk$set(echo = TRUE, fig.height = 7, fig.width = 10)
@@ -31,18 +36,19 @@ options(dplyr.summarise.inform = FALSE)
 # User defined variables #
 
 
-# Path to where the data is stored
-  # Note: Windows uses "\" in its file names by default and they must be chagned to "/" in the script to function properly
-#pth <- "//pilly/jaguar/interface/project/MX-44/Agoura Hills Data Analysis and Pics/Data and Analysis/Gore/Gore_PA_Bit63/Data/All_Data_Every_10th"
-#pth <- "C:/R_Programs/Nutcracker_Data/Falcon_Pair_1/Test1"
-#pth <- "E:/Teradyne_WFH/Falcon_Cross-Corr_Data/All_Data/Test1"
-#pth <- "//pilly/jaguar/interface/project/MX44e/Pilot Line Issues/s2p"
+print('running aggregation')
 
-
-pth <- input$RF1_pth
-write.csv(pth,file =  'C:/users/huntdust/desktop/dir.txt')
+#pth <- input$RF1_pth
+#write.csv(pth,file =  'C:/users/huntdust/desktop/dir.txt')
 #pth <- "C:/Users/huntdust/Desktop/KeyenceIntegration_Beercan_5/"
+#pth <- global$datapath
+#pth <- output$dir
 
+
+pth <- params$pth
+#pth <- "C:/users/huntdust/Desktop/s2p_test_website/"
+pth <- gsub(pth,"\\","/")
+paste(pth,"/")
 
 save_location <- pth
 
@@ -58,7 +64,6 @@ cycs_between_meas <- 5
 
 # declare how many cables are included in this data set so that the max phase shift between cables can be correctly calculated
 num_cables <- 1
-
 
 # Specify if this data is from a Falcon test and should therefore have the adpater losses subtracted from the results
 is_falcon <- FALSE
@@ -84,7 +89,6 @@ s21_spec <- "Falcon"
 
 # End of User Defined Variables #
 #################################
-
 
 # Create the path to the s2p data
 s2p_pth <- paste(pth,"s2p_data", sep = "")
@@ -118,6 +122,9 @@ filetimes <- sort(filetimes)
 fileinfo <- data.frame(order, filetimes)
 names(fileinfo) <- c("filenames", "filetimes")
 
+
+
+print(s2p_pth)
 # End of User Defined Variables #
 #################################
 
@@ -208,7 +215,7 @@ sd_by_cycle_s21 <- c(0)
 sd_by_cycle_phase <- c(0)
 
 # Read in all the data
-df <- read_bulk(directory = s2p_pth, verbose = FALSE, ## make this false to stop the printing as files are loaded
+df <- read_bulk(directory = s2p_pth, verbose = TRUE, ## make this false to stop the printing as files are loaded
                 fun = read.delim, stringsAsFactors = FALSE, extension = ".s2p", header = FALSE, sep = "", dec = ".", comment.char = "!")
 
 # Rename the data and set the data indicator
