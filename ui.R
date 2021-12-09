@@ -4,11 +4,9 @@ library(plotly)
 library(markdown)
 library(rmarkdown)
 library(knitr)
-library(shinywebcam)
 library(bslib)
 library(shinyFiles)
 library(DT)
-
 
 datapath <- "/mnt/Gryffindor/Data_and_Results"
 analysispath <- "/opt/shiny-server/samples/sample-apps/dashtest/analysis"
@@ -19,7 +17,7 @@ analysistypes <- list.files(RMDPath)
 setwd("/opt/shiny-server/samples/sample-apps/dashtest")
 
 ui <- 
-  navbarPage("Data visualization and analysis tools",id='tabs', collapsible = TRUE, inverse = TRUE, theme = shinytheme("cosmo"),
+  navbarPage("Data visualization and analysis tools",id='tabs', collapsible = TRUE, inverse = TRUE, theme = shinytheme("cyborg"),
              tabPanel("Temperature/Humidity Plots",
                       fluidPage(
                         tabsetPanel(
@@ -240,11 +238,12 @@ ui <-
                            placeholder = "No file selected"
                          ),
                          textInput("maxRC",label='Resistance Threshold',value='0.1'),
-                         checkboxInput("enableForce", "Show force trace", value = FALSE)
+                         checkboxInput("enableForce", "Show force trace", value = FALSE), br(), br(), 
+                         downloadButton("cycleReport", "Generate report")
                        ),
                        mainPanel(
-                         plotlyOutput(outputId='CyclesPlot')
-                         
+                         plotlyOutput(outputId='CyclesPlot'), br(), br(), br(),
+                         DTOutput("cycleStats", width = "90%",height = "auto")  
                        )
                      )
                    )
