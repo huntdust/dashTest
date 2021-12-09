@@ -157,7 +157,7 @@ server <- function(input,output,session) {
     data <- data.frame(f,db)
     
     
-    fig <- plot_ly(data,x=~f,y=~db,type='scatter',mode='lines',name=names[1])
+    fig <- plot_ly(data,x=~f,y=~db,type='scatter',mode='lines',name=names[1],hoverinfo = names[1])
     cnt<-2
     
     if (numFiles>1) {
@@ -172,7 +172,7 @@ server <- function(input,output,session) {
         
         #add_marker(data=Df_game, name="line2", x = ~Timestamp, y = ~CurrentRecognitionRate)
         
-        fig <- fig %>% add_trace(data=data,x=~f,y=~db,mode='lines', name = names[cnt])
+        fig <- fig %>% add_trace(data=data,x=~f,y=~db,mode='lines', name = names[cnt],hoverinfo = names[cnt])
       #  fig <- fig %>% add_markers(data=data,x=~f,y=~db, name = names[cnt],mode='lines')
         cnt <- cnt+1
       }}
@@ -199,7 +199,7 @@ server <- function(input,output,session) {
     f <-  s12$f
     data <- data.frame(f,db)
     
-    fig <- plot_ly(data,x=~f,y=~db,type='scatter',mode='lines',name=names[1])
+    fig <- plot_ly(data,x=~f,y=~db,type='scatter',mode='lines',name=names[1],hoverinfo = names[1])
     cnt<-2
     
     if (numFiles>1) {
@@ -211,7 +211,7 @@ server <- function(input,output,session) {
         data <- data.frame(f,db)
         data$db <- unlist(data$db)
         
-        fig <- fig %>% add_trace(data=data,y=~db,mode='lines', name = names[cnt])
+        fig <- fig %>% add_trace(data=data,y=~db,mode='lines', name = names[cnt], hoverinfo = names[cnt])
         cnt <- cnt+1
       }}
     
@@ -240,7 +240,7 @@ server <- function(input,output,session) {
     z <- x
     data <- data.frame(t,z)
     
-    tdr <- plot_ly(data,x=~t,y=~z,type='scatter',mode='lines',name=names[1])
+    tdr <- plot_ly(data,x=~t,y=~z,type='scatter',mode='lines',name=names[1],hoverinfo = names[1])
     cnt <- 2 
     
     if (numFiles>1) {
@@ -255,7 +255,7 @@ server <- function(input,output,session) {
         x <- 50*(1+z)/(1-z)
         z <- x
         data <- data.frame(t,z)
-        tdr <- tdr %>% add_trace(data=data,y=~z,mode='lines', name = names[cnt])
+        tdr <- tdr %>% add_trace(data=data,y=~z,mode='lines', name = names[cnt], hoverinfo = names[cnt])
         
         cnt <- cnt+1
     }}
@@ -280,7 +280,7 @@ server <- function(input,output,session) {
   
   output$report <- downloadHandler(
     # For PDF output, change this to "report.pdf"
-    filename = "report.html",
+    filename = "SParameterReport.html",
     content = function(file) {
       # Copy the report file to a temporary directory before processing it, in
       # case we don't have write permissions to the current working dir (which
@@ -418,7 +418,7 @@ server <- function(input,output,session) {
                           title = plt_title,
                           yaxis2 = ay,
                           showlegend = FALSE,
-                          margin = list(b=20,t=10,r=50,l=50)
+                          margin = list(b=20,t=50,r=50,l=50)
                           )
      plt
    
@@ -450,33 +450,32 @@ server <- function(input,output,session) {
            if (d[r,c+first_resistance_column]>0.1){
              row <- r
            } else {
-             row <-2
+             row <-10
            }
          }
        }
-       row
        
+       #filtering into a single column, and removing outliers
        set <- t(d[row,c(first_resistance_column:last_resistance_coluimn)])
-       subset <- set[set[,1]<max_resistance]
-       #d[row,c(first_resistance_column:last_resistance_coluimn)>max_resistance] <- max_resistance 
+       subset <- round(set[set[,1]<max_resistance],4)
+       
        #TEC - point at which all pins drop below 100mOhm
-       avgTEC <- mean(subset)
-       stdTEC <- sd(subset)
-       df_TEC <- c(avgTEC,stdTEC,4*stdTEC,5*stdTEC,6*stdTEC,7*stdTEC)
+       avgTEC <- round(mean(subset),4)*10e3
+       stdTEC <- round(sd(subset),4)*10e3
+       df_TEC <- c(avgTEC,stdTEC,round(min(subset),3)*10e3,round(max(subset),3)*10e3,4*stdTEC,5*stdTEC,6*stdTEC,7*stdTEC)
        
        #Full Compression
-       avgC <- mean(as.double(d[cycle*cycleLength,c(first_resistance_column:last_resistance_coluimn)]))
-       stdC <- sd(as.double(d[cycle*cycleLength,c(first_resistance_column:last_resistance_coluimn)]))
-       df_Comp <- c(avgC,stdC,4*stdC,5*stdC,6*stdC,7*stdC)
+       d <- round(as.double(d[cycle*cycleLength,c(first_resistance_column:last_resistance_coluimn)]),4)
+
+       avgC <- round(mean(d),4)*10e3
+       stdC <- round(sd(d),4)*10e3
+       df_Comp <- c(avgC,stdC,round(min(d),3)*10e3,round(max(d),3)*10e3,4*stdC,5*stdC,6*stdC,7*stdC)
        
-       labels = c('mean', 'std', '4 sigma', '5 sigma', '6 sigma', '7 sigma')
+       labels = c('mean', 'std', 'min', 'max' ,'4 sigma', '5 sigma', '6 sigma', '7 sigma')
        headers = c('TEC', 'Full Compression')
        
-       stats <- data.frame(metrics=labels,TEC = df_TEC, COMPRESSED = df_Comp)
-       #stats <- do.call(rbind.data.frame, stats)
-       #stats <- as.data.frame(stats)
-       
-       #stats <- matrix(unlist(stats),ncol=dim(stats)[2])
+       stats <- data.frame(metrics=labels,TEC_mOhms = df_TEC, COMPRESSED_mOhms = df_Comp)
+  
        stats
   })
     
@@ -657,7 +656,7 @@ server <- function(input,output,session) {
       
       # Create the plot
       numCycles <- dim(d)[1]
-      plt <- plot_ly(data = d[1:cycleLength,], type = "scatter", mode = "lines")
+      plt <- plot_ly(data = d[1:cycleLength,], type = "scatter", mode = "lines",height=800)
       for(i in first_resistance_column:last_resistance_coluimn){
         plt <- plt %>% add_trace(x = d[1], y = d[1:cycleLength,i], name = names(d)[i])
       }
@@ -670,7 +669,7 @@ server <- function(input,output,session) {
       # Add labels and set range limit
       plt_title <- c("Cycles vs DCR")
       
-      plt <- plt %>% layout(xaxis = list(title = "Distance (mils)"),
+      plt <- plt %>% layout(xaxis = list(title = "Cycles"),
                             yaxis = list(range = c(0,max_resistance),
                                          title = c("Resistance (Ohms)")),
                             title = plt_title,
@@ -678,12 +677,72 @@ server <- function(input,output,session) {
                             showlegend = FALSE,
                             #Legend fundamentally overlaps the yaxis2 label - this is a known issue 
                             legend = list(orientation="s",xanchor="center"),
-                            margin = list(b=20,t=10,r=100,l=50)
+                            margin = list(b=20,t=100,r=100,l=50)
       )
       
       plt
     })
 
+    
+    #stats for cycles data
+    
+    cycleStatsR <-reactive({
+      file <- input$Cycles_File
+      data <- tools::file_ext(file$datapath)
+     
+      d <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE, skip=22)
+      max_resistance <- as.double(input$maxRC)
+      #max_resistance <- 0.1
+      
+      # Get the columns
+      first_resistance_column <- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
+      last_resistance_coluimn <- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+      Force_column <- which(names(d)=="LdCel.0")              #Load Cell data - forces
+      
+      #set <- t(d[,c(first_resistance_column:last_resistance_coluimn)])
+      #subset <- set[set[,1]<max_resistance]
+
+      #compute avg. and stdev. 
+      d <- as.double(unlist(d[,c(first_resistance_column:last_resistance_coluimn)]))
+      avgC <- round(mean(d),4)*10e3
+      stdC <- round(sd(d),4)*10e3
+      df_Comp <- c(avgC,stdC,round(min(d),4)*10e3,round(max(d),4)*10e3,4*stdC,5*stdC,6*stdC,7*stdC)
+      
+      labels = c('mean', 'std','min','max','4 sigma', '5 sigma', '6 sigma', '7 sigma')
+      headers = c('Stats (mOhm)')
+      
+      stats <- data.frame(metrics=labels, Stats_mOhms = df_Comp)
+      stats
+    })
+    
+    output$cycleStats <- renderDT(
+      cycleStatsR()
+    )
+    
+  
+  #################report handler###########################
+    output$cycleReport <- downloadHandler(
+      # For PDF output, change this to "report.pdf"
+      filename = "cyclesReport.html",
+      content = function(file) {
+        # Copy the report file to a temporary directory before processing it, in
+        # case we don't have write permissions to the current working dir (which
+        # can happen when deployed).
+        tempReport <- file.path(tempdir(), "cycleReport.Rmd")
+        file.copy("cycleReport.Rmd", tempReport, overwrite = TRUE)
+        
+        # Set up parameters to pass to Rmd document
+        params <- list(cycle_file=input$Cycles_File,maxRC = input$maxRC,enableForce=input$enableForce,cycleStats = cycleStatsR())
+        
+        # Knit the document, passing in the `params` list, and eval it in a
+        # child of the global environment (this isolates the code in the document
+        # from the code in this app).
+        rmarkdown::render(tempReport, output_file = file,
+                          params = params,
+                          envir = new.env(parent = globalenv())
+        )
+      }
+    )
     
 
 ################TEMPERATURE PLOTS#########################
@@ -714,8 +773,6 @@ server <- function(input,output,session) {
                     "all"    = dim)
 
     
-
-    
     max <- as.numeric(max(data$Temperature..C.[(dim-range):dim],na.rm=TRUE))
     min <- as.numeric(min(data$Temperature..C.[(dim-range):dim],na.rm=TRUE))
     
@@ -725,12 +782,10 @@ server <- function(input,output,session) {
     dates <- data[c(lowerbound:dim),c(1:1)]
     dates <- dates[seq(1, range, (range/5))]
     
-    
     tempPlot <- ggplot(data[c(lowerbound:dim),c(1:3)] , aes(x=factor(data[c(lowerbound:dim),c(1:1)]),y=data[c(lowerbound:dim),c(2:2)])) + 
       geom_line(aes(group=1),color='red') + labs(x = "Time (days)", y = "Temperature (C)")  + 
       scale_x_discrete(breaks = c(dates)) +
       scale_y_continuous(limits=c(tempTicks[1],tempTicks[11])) + theme_minimal()
-    
   })
   
   

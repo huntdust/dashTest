@@ -52,7 +52,7 @@ params:
                           title = plt_title,
                           yaxis2 = ay,
                           showlegend = FALSE,
-                          margin = list(b=20,t=10,r=50,l=50)
+                          margin=list(b=20,t=50,r=50,l=50)
                           )
      TEC_plt <- plt
      #TEC_plt
@@ -124,14 +124,27 @@ params:
       #Or, could append sheets vertically and have an additional column label for cycle, and set frame to cycle 
       plt <- plot_ly(data=arr,x=~X,y=~Y,type = 'scatter',mode='markers',color=~res,frame=~cycle)
       plt <- plt %>% layout(title='Pad pattern',xaxis = list(title = ""),yaxis = list(title = ""))
+      plt <- plt %>% animation_opts(frame = 20)
       
-      #plt
       
-      
-      subplot(TEC_plt,plt,widths=c(0.8,0.2),margin = 0.07)     
+      #subplot(TEC_plt,plt,widths=c(0.8,0.2),margin = 0.07)     
    
 
 ```
+
+<div>
+ <div style = "float:left">
+ ```{r echo = F, fig.width = 6, fig.height = 6}
+ TEC_plt
+ ```
+ </div>
+
+ <div style = "float:right">
+ ```{r, echo = F, fig.width = 3, fig.height = 6}
+ plt
+ ```
+ </div>
+</div>
 
 
 
