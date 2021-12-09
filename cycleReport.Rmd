@@ -1,0 +1,76 @@
+---
+title: "Cycles Report"
+output: html_document
+params:
+  cycle_file: TRUE
+  maxRC: TRUE
+  enableForce: TRUE
+  cycleStats: TRUE
+---
+
+```{r, echo=FALSE,warning = FALSE}
+      
+     
+  #introduce tab/TEC number feature - TEC_Analysis needs to accept plot # argument
+      
+      file <- params$cycle_file
+      d <<- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE, skip=22)
+      cycleLength <- dim(d)[1]
+      
+      max_resistance <- as.double(params$maxRC)
+      
+      
+      # Get the columns
+      first_resistance_column <<- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
+      last_resistance_coluimn <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+      Force_column <- which(names(d)=="LdCel.0")              #Load Cell data - forces
+      
+      ay <- list(
+        tickfont = list(color='red'),
+        overlaying = "y",
+        side = "right",
+        title = "<b>Force</b> (lbs)"
+      )
+      
+      # Create the plot
+      numCycles <- dim(d)[1]
+      plt <- plot_ly(data = d[1:cycleLength,], type = "scatter", mode = "lines",width=1000,height=800)
+      for(i in first_resistance_column:last_resistance_coluimn){
+        plt <- plt %>% add_trace(x = d[1], y = d[1:cycleLength,i], name = names(d)[i])
+      }
+      
+      #d[((cycleLength*(cycle-1))):((cycleLength*cycle)),Force_column][1] <- 0
+      if (params$enableForce) {
+        plt <- plt %>% add_trace(x= d[1],y=na.omit(d[1:cycleLength,Force_column]),name = "Force", yaxis="y2",line=list(width=1,color='red'))      #Force trace
+      }
+      
+      # Add labels and set range limit
+      plt_title <- c("Cycles vs DCR")
+      
+      plt <- plt %>% layout(xaxis = list(title = "Cycle"),
+                            yaxis = list(range = c(0,max_resistance),
+                                         title = c("Resistance (Ohms)")),
+                            title = plt_title,
+                            yaxis2 = ay,
+                            showlegend = FALSE,
+                            #Legend fundamentally overlaps the yaxis2 label - this is a known issue 
+                            legend = list(orientation="s",xanchor="center"),
+                            margin = list(b=0,t=100,r=0,l=0)
+                            )
+      
+      
+      plt
+      
+    
+      
+```
+
+
+```{r,echo=FALSE,warning = FALSE}
+#statistics table output 
+library(knitr)
+kable(params$cycleStats)
+```
+
+  
+    
