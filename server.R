@@ -7,6 +7,7 @@ library(fs)
 library(DT)
 library(plotly)
 library(abind)
+library(e1071) 
 
 #test comment 
 #test comment 2
@@ -28,6 +29,7 @@ server <- function(input,output,session) {
   #volumes <- getVolumes()
   volumes <- c(Home = fs::path_home())
   basepath <- '/opt/shiny-server/samples/sample-apps/dashtest/'
+
   ev <- reactiveValues(data=NULL)
   
   source(file.path("samplePlot.R"), local = TRUE)$value  #sample plot
@@ -145,6 +147,8 @@ server <- function(input,output,session) {
 #######S2P PLOTTING VERSION 2######################
   
   output$s2pPlot <- renderPlotly({
+    need(input$s2pFiles)
+    
     skrf <- import("skrf")
     plt <- import("matplotlib.pyplot")
     file <- input$s2pFiles
@@ -187,6 +191,7 @@ server <- function(input,output,session) {
   })
   
   output$s2pPlot2 <- renderPlotly({
+    need(input$s2pFiles, )
     
     skrf <- import("skrf")
     plt <- import("matplotlib.pyplot")
@@ -224,6 +229,8 @@ server <- function(input,output,session) {
     
   
   output$timePlot <- renderPlotly({
+    need(input$s2pFiles)
+    
     skrf <- import("skrf")
     file <- input$s2pFiles
     paths <- file$datapath
@@ -381,7 +388,7 @@ server <- function(input,output,session) {
     output$TEC_Analysis <- renderPlotly({
       
     #introduce tab/TEC number feature - TEC_Analysis needs to accept plot # argument 
-     req(input$TECSlider)
+     req(input$TECSlider, input$TEC_File)
      cycle <- input$TECSlider
      
     
@@ -406,7 +413,7 @@ server <- function(input,output,session) {
     
      # Create the plot
      plt <- plot_ly(data = d[(cycleLength*(cycle-1)):(cycleLength*cycle),], type = "scatter", mode = "lines")
-     for(i in first_resistance_column:last_resistance_coluimn){
+     for(i in first_resistance_column:last_resistance_coluimn){     #Add one trace for each pin 
        plt <- plt %>% add_trace(x = ~External.Z.Delayed, y = d[(cycleLength*(cycle-1)):(cycleLength*cycle),i], name = names(d)[i])
      }
      d[((cycleLength*(cycle-1))):((cycleLength*cycle)),Force_column][1] <- 0
@@ -424,6 +431,59 @@ server <- function(input,output,session) {
                           )
      plt
    
+  })
+  
+  #Histogram plot for TEC - animated histogram vs. displacement 
+  output$TECHist <- renderPlotly({
+    req(input$TECSlider, input$TEC_File)
+    cycle <- input$TECSlider
+    
+    
+    file <- input$TEC_File
+    data <- tools::file_ext(file$datapath)
+
+    cycleLength <- dim(d)[1]/numTabs() 
+    
+    d <<- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE,skip=22)
+    max_resistance <- 0.1
+    first_resistance_column <<- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
+    last_resistance_coluimn <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+    Force_column <- which(names(d)=="LdCel.0")              #Load Cell data - forces
+    disp_col <- which(names(d)=="External.Z.Delayed")
+    
+    temp <- d[disp_col]
+    d[d>max_resistance*2] <- 0
+    d[disp_col] <- temp
+    
+    # create steps and plot all histograms
+    steps <- list()
+    aval <- list()
+    
+    x <- seq(0,10, length.out = 1000)
+    
+    for(step in 1:cycleLength){
+      aval[[step]] <-list(visible = FALSE,
+                          name = paste0('v = ', step),
+                          x=x,
+                          y=sin(step*x))
+    }
+    
+    fig <- plot_ly()
+    for (i in 1:(cycleLength)) {
+      fig<- fig %>% add_trace(x=unlist(d[i,first_resistance_column:last_resistance_coluimn],), visible = aval[i][[1]]$visible, type = 'histogram',
+                              xaxis=list(c(0,0.2)),yaxis=list(c(0,60)),bingroup=1)
+      
+      step <- list(args = list('visible', rep(FALSE, length(aval))), method = 'restyle',label = d[i,disp_col])
+      step$args[[2]][i] = TRUE  
+      steps[[i]] = step 
+    }  
+    
+    # add slider control to plot
+    fig <- fig %>%layout(title = 'TEC - Histogram of Resistance vs. Displacement', sliders = list(list(active = 1,
+                                                                                                       currentvalue = list(prefix = "Displacement (mils): "),
+                                                                                                       steps = steps)),xaxis=list(title='Resistance (Ohms)',range=c(0.01,max_resistance)),yaxis=list(title='Frequency',range=c(0,60)))
+    fig
+    
   })
   
     stats <-reactive({
@@ -464,16 +524,28 @@ server <- function(input,output,session) {
        #TEC - point at which all pins drop below 100mOhm
        avgTEC <- round(mean(subset),4)*10e3
        stdTEC <- round(sd(subset),4)*10e3
-       df_TEC <- c(avgTEC,stdTEC,round(min(subset),3)*10e3,round(max(subset),3)*10e3,4*stdTEC,5*stdTEC,6*stdTEC,7*stdTEC)
+       kurtTEC <- kurtosis(subset)
+       df_TEC <- c(kurtTEC,avgTEC,stdTEC,round(min(subset),3)*10e3,round(max(subset),3)*10e3,4*stdTEC,5*stdTEC,6*stdTEC,7*stdTEC)
        
-       #Full Compression
+       #Full Compression dataframe
        d <- round(as.double(d[cycle*cycleLength,c(first_resistance_column:last_resistance_coluimn)]),4)
-
+       
+       #Calculate the pass rate at full compression 
+       #rowN <- dim(d[,first_resistance_column:last_resistance_coluimn])[1]
+       #colN <- dim(d[,first_resistance_column:last_resistance_coluimn])[2]
+       #total <- rowN*colN
+       #failed <- sum(d[,first_resistance_column:last_resistance_coluimn]>max_resistance,na.rm=TRUE)
+       #pass_rate <- failed/total
+       
+       #print(pass_rate)
+       
+       
        avgC <- round(mean(d),4)*10e3
        stdC <- round(sd(d),4)*10e3
-       df_Comp <- c(avgC,stdC,round(min(d),3)*10e3,round(max(d),3)*10e3,4*stdC,5*stdC,6*stdC,7*stdC)
+       kurtC <- kurtosis(d)
+       df_Comp <- c(kurtC,avgC,stdC,round(min(d),3)*10e3,round(max(d),3)*10e3,4*stdC,5*stdC,6*stdC,7*stdC)
        
-       labels = c('mean', 'std', 'min', 'max' ,'4 sigma', '5 sigma', '6 sigma', '7 sigma')
+       labels = c('Kurtosis #','mean', 'std', 'min', 'max' ,'4 sigma', '5 sigma', '6 sigma', '7 sigma')
        headers = c('TEC', 'Full Compression')
        
        stats <- data.frame(metrics=labels,TEC_mOhms = df_TEC, COMPRESSED_mOhms = df_Comp)
@@ -586,9 +658,16 @@ server <- function(input,output,session) {
       }
     }) 
     
-    output$TEC_Stats <- renderDT(
-      stats()
-    )
+    #output$TEC_Stats <- DT::renderDataTable({
+    #  #datatable(stats(), options = list(paging=FALSE)) %>% formatStyle(color='white') 
+    #  stats()
+    #}) 
+    
+    output$TEC_Stats<- DT::renderDataTable({ 
+      dat <- datatable(stats(), options = list(paging=FALSE)) %>%
+        formatStyle(names(stats()),color = 'white', backgroundColor = 'black', fontWeight = 'bold',target='row')
+      return(dat)
+    })
     
     #Tab handling for multiple TEC plot tabs 
     # lapply(1:5, function(j) {
@@ -634,6 +713,7 @@ server <- function(input,output,session) {
 ################CYCLE PLOTS##############################
 
     output$CyclesPlot <- renderPlotly({
+      req(input$Cycles_File)
       
       #introduce tab/TEC number feature - TEC_Analysis needs to accept plot # argument
       
@@ -658,7 +738,7 @@ server <- function(input,output,session) {
       
       # Create the plot
       numCycles <- dim(d)[1]
-      plt <- plot_ly(data = d[1:cycleLength,], type = "scatter", mode = "lines",height=800)
+      plt <- plot_ly(data = d[1:cycleLength,], type = "scatter", mode = "lines",height=400)
       for(i in first_resistance_column:last_resistance_coluimn){
         plt <- plt %>% add_trace(x = d[1], y = d[1:cycleLength,i], name = names(d)[i])
       }
@@ -685,6 +765,32 @@ server <- function(input,output,session) {
       plt
     })
 
+    #histogram plot for cycling data 
+    
+    output$CyclesHist <- renderPlotly({
+      req(input$Cycles_File)
+      
+      file <- input$Cycles_File
+      d <<- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE, skip=22)
+      cycleLength <- dim(d)[1]
+      
+      max_resistance <- as.double(input$maxRC)
+      
+      set <- t(d[,c(first_resistance_column:last_resistance_coluimn)])
+      subset <- round(set[set[,1]<max_resistance],4)
+      
+      # Get the columns
+      first_resistance_column <<- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
+      last_resistance_coluimn <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+      Force_column <- which(names(d)=="LdCel.0")      
+      
+      fig <- plot_ly(x = subset,type="histogram")
+      fig <- fig %>% layout(xaxis=list(title='Resistance (Ohms)',range=c(0,max_resistance)),yaxis=list(title='Frequency'),title='Histogram of All Cycles')
+      fig
+      
+      #layout(title='S11',xaxis=list(title='Frequency (Ghz)'),yaxis=list(title='Magnitude of S11 (dB)'),legend = list(orientation="h",y=-0.3))
+    })
+    
     
     #stats for cycles data
     
@@ -708,18 +814,25 @@ server <- function(input,output,session) {
       d <- as.double(unlist(d[,c(first_resistance_column:last_resistance_coluimn)]))
       avgC <- round(mean(d),4)*10e3
       stdC <- round(sd(d),4)*10e3
-      df_Comp <- c(avgC,stdC,round(min(d),4)*10e3,round(max(d),4)*10e3,4*stdC,5*stdC,6*stdC,7*stdC)
+      kurt <- kurtosis(d)
+      df_Comp <- c(kurt,avgC,stdC,round(min(d),4)*10e3,round(max(d),4)*10e3,4*stdC,5*stdC,6*stdC,7*stdC)
       
-      labels = c('mean', 'std','min','max','4 sigma', '5 sigma', '6 sigma', '7 sigma')
+      labels = c('Kurtosis #','mean', 'std','min','max','4 sigma', '5 sigma', '6 sigma', '7 sigma')
       headers = c('Stats (mOhm)')
       
       stats <- data.frame(metrics=labels, Stats_mOhms = df_Comp)
       stats
     })
     
-    output$cycleStats <- renderDT(
-      cycleStatsR()
-    )
+  
+    
+    output$cycleStats <- DT::renderDataTable({ 
+      dat <- datatable(cycleStatsR(), options = list(paging=FALSE)) %>%
+        formatStyle(names(cycleStatsR()),color = 'white', backgroundColor = 'black', fontWeight = 'bold',target='row')
+      return(dat)
+    })
+    
+  
     
   
   #################report handler###########################
