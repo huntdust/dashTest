@@ -12,6 +12,8 @@ params:
 ---
 
 ```{r, echo=FALSE,figures-side,warning = FALSE}
+
+###################################TEC & FORCE PLOT##################################################################################
      library(cowplot)
 
      cycle <- params$TECSlider
@@ -130,6 +132,13 @@ params:
       #subplot(TEC_plt,plt,widths=c(0.8,0.2),margin = 0.07)     
    
 
+      
+      
+      
+      
+##########################HISTOGRAM###################################################
+      
+      
 ```
 
 <div>
