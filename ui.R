@@ -16,6 +16,8 @@ analysisfiles <- list.files(analysispath)
 analysistypes <- list.files(RMDPath)
 setwd("/opt/shiny-server/samples/sample-apps/dashtest")
 
+setwd("C:/home/dashTest")
+
 ui <- 
   navbarPage("Data visualization and analysis tools",id='tabs', collapsible = TRUE, inverse = TRUE, theme = shinytheme("cyborg"),
              tabPanel("Temperature/Humidity Plots",
@@ -213,11 +215,14 @@ ui <-
                             
                         
                             uiOutput('slider'),
+                            plotlyOutput(outputId = "TEC_Analysis", height = "700px", width = "900px"),
+                            
                             
                             fluidRow(
                                      #uiOutput('slider')
-                                     column(6,plotlyOutput(outputId = "TEC_Analysis", height = "700px", width = "900px")),
-                                     column(6,plotlyOutput(outputId = 'pads',width='70%',height="700px"),style='padding-left:300px; padding-right:0px; padding-top:0px; padding-bottom:0px')
+                                     #column(6,plotlyOutput(outputId = "TEC_Analysis", height = "700px", width = "900px"),style='padding-left:0px; padding-right:0px; padding-top:0px; padding-bottom:0px'),
+                                     column(6,plotlyOutput(outputId = 'pads',width='50%',height="700px"),style='padding-left:0px; padding-right:0px; padding-top:50px; padding-bottom:0px'),
+                                     column(6,plotlyOutput(outputId = 'TECHist',width='100%',height="700px"),style='padding-left:10px; padding-right:0px; padding-top:50px; padding-bottom:0px')
                             ),
                             
         
@@ -243,6 +248,7 @@ ui <-
                        ),
                        mainPanel(
                          plotlyOutput(outputId='CyclesPlot'), br(), br(), br(),
+                         plotlyOutput(outputId='CyclesHist'), br(),
                          DTOutput("cycleStats", width = "90%",height = "auto")  
                        )
                      )
