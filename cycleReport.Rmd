@@ -61,8 +61,29 @@ params:
       
       plt
       
-    
       
+      
+```
+
+```{r,echo=FALSE}
+
+    file <- params$cycle_file
+    d <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE, skip=22)
+    cycleLength <- dim(d)[1]
+    
+    max_resistance <- as.double(params$maxRC)
+    
+    set <- t(d[,c(first_resistance_column:last_resistance_coluimn)])
+    subset <- round(set[set[,1]<max_resistance],4)
+    
+    # Get the columns
+    first_resistance_column <<- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
+    last_resistance_coluimn <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+    Force_column <- which(names(d)=="LdCel.0")      
+    
+    fig <- plot_ly(x = subset,type="histogram")
+    fig <- fig %>% layout(xaxis=list(title='Resistance (Ohms)',range=c(0,max_resistance)),yaxis=list(title='Frequency'),title='Histogram of All Cycles')
+    fig
 ```
 
 
