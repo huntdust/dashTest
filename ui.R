@@ -16,7 +16,6 @@ analysisfiles <- list.files(analysispath)
 analysistypes <- list.files(RMDPath)
 setwd("/opt/shiny-server/samples/sample-apps/dashtest")
 
-setwd("C:/home/dashTest")
 
 ui <- 
   navbarPage("Data visualization and analysis tools",id='tabs', collapsible = TRUE, inverse = TRUE, theme = shinytheme("cyborg"),
@@ -156,11 +155,12 @@ ui <-
                            fluidPage(     
                             sidebarLayout(
                               sidebarPanel(
-                                      #actionButton("dir", 'select a folder'), 
-                                      shinyDirButton("dir", "Input directory", "Upload"),
-                                      verbatimTextOutput("dir", placeholder = TRUE),
-                                      actionButton("runRF1", "Generate Report",class = "btn-success"), br(), br(),
-                                      actionButton("downloadRF1", "Download Report",class = "btn-success"),
+                                      actionButton("dir", 'select a folder'), 
+                                      #shinyDirButton("dir", "Input directory", "Upload"),
+                                      #shinyFilesButton('s2p_dir',"Input directory",title="Input s2p directory",multiple='True'),
+                                      verbatimTextOutput("wd", placeholder = TRUE),
+                                      #actionButton("runRF1", "Generate Report",class = "btn-success"), br(), br(),
+                                      actionButton("runRF1", "Download Report",class = "btn-success"),
                                       
                                    ),
                               mainPanel(
@@ -200,6 +200,7 @@ ui <-
                               placeholder = "No file selected"
                             ),
                             textInput("maxR",label='Resistance Threshold',value='0.1'),
+                            #textInput("DCR_spec",label='DCR Specification',value='0.1'),
                             downloadButton("TECReport", "Generate report")
                             #shinyFilesButton('TEC_File',label = 'File select', title = 'Please select file', multiple = FALSE)
                           ),
@@ -221,7 +222,7 @@ ui <-
                             fluidRow(
                                      #uiOutput('slider')
                                      #column(6,plotlyOutput(outputId = "TEC_Analysis", height = "700px", width = "900px"),style='padding-left:0px; padding-right:0px; padding-top:0px; padding-bottom:0px'),
-                                     column(6,plotlyOutput(outputId = 'pads',width='50%',height="700px"),style='padding-left:0px; padding-right:0px; padding-top:50px; padding-bottom:0px'),
+                                     column(6,plotlyOutput(outputId = 'pads',width='70%',height="700px"),style='padding-left:0px; padding-right:0px; padding-top:50px; padding-bottom:0px'),
                                      column(6,plotlyOutput(outputId = 'TECHist',width='100%',height="700px"),style='padding-left:10px; padding-right:0px; padding-top:50px; padding-bottom:0px')
                             ),
                             
@@ -243,6 +244,7 @@ ui <-
                            placeholder = "No file selected"
                          ),
                          textInput("maxRC",label='Resistance Threshold',value='0.1'),
+                         textInput("DCR_spec",label='DCR Specification',value='0.1'),
                          checkboxInput("enableForce", "Show force trace", value = FALSE), br(), br(), 
                          downloadButton("cycleReport", "Generate report")
                        ),
