@@ -155,11 +155,12 @@ ui <-
                            fluidPage(     
                             sidebarLayout(
                               sidebarPanel(
-                                      #actionButton("dir", 'select a folder'), 
-                                      shinyDirButton("dir", "Input directory", "Upload"),
-                                      verbatimTextOutput("dir", placeholder = TRUE),
-                                      actionButton("runRF1", "Generate Report",class = "btn-success"), br(), br(),
-                                      actionButton("downloadRF1", "Download Report",class = "btn-success"),
+                                      actionButton("dir", 'select a folder'), 
+                                      #shinyDirButton("dir", "Input directory", "Upload"),
+                                      #shinyFilesButton('s2p_dir',"Input directory",title="Input s2p directory",multiple='True'),
+                                      verbatimTextOutput("wd", placeholder = TRUE),
+                                      #actionButton("runRF1", "Generate Report",class = "btn-success"), br(), br(),
+                                      actionButton("runRF1", "Download Report",class = "btn-success"),
                                       
                                    ),
                               mainPanel(
@@ -199,6 +200,7 @@ ui <-
                               placeholder = "No file selected"
                             ),
                             textInput("maxR",label='Resistance Threshold',value='0.1'),
+                            #textInput("DCR_spec",label='DCR Specification',value='0.1'),
                             downloadButton("TECReport", "Generate report")
                             #shinyFilesButton('TEC_File',label = 'File select', title = 'Please select file', multiple = FALSE)
                           ),
@@ -242,6 +244,7 @@ ui <-
                            placeholder = "No file selected"
                          ),
                          textInput("maxRC",label='Resistance Threshold',value='0.1'),
+                         textInput("DCR_spec",label='DCR Specification',value='0.1'),
                          checkboxInput("enableForce", "Show force trace", value = FALSE), br(), br(), 
                          downloadButton("cycleReport", "Generate report")
                        ),

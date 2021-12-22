@@ -24,8 +24,8 @@ addResourcePath("tmpuser",getwd())
 server <- function(input,output,session) {
   
   tabIndex <- reactiveVal(0)
-  #volumes <- getVolumes()
-  volumes <- c(Home = fs::path_home())
+  volumes <- getVolumes()
+  #volumes <- c(Home = fs::path_home())
   basepath <- 'C:/home/dashTest/dashTest/'
   ev <- reactiveValues(data=NULL)
   
@@ -144,7 +144,7 @@ server <- function(input,output,session) {
 #######S2P PLOTTING VERSION 2######################
   
   output$s2pPlot <- renderPlotly({
-    need(input$s2pFiles)
+    req(input$s2pFiles)
     
     skrf <- import("skrf")
     plt <- import("matplotlib.pyplot")
@@ -188,7 +188,7 @@ server <- function(input,output,session) {
   })
   
   output$s2pPlot2 <- renderPlotly({
-    need(input$s2pFiles, )
+    req(input$s2pFiles)
     
     skrf <- import("skrf")
     plt <- import("matplotlib.pyplot")
@@ -226,7 +226,7 @@ server <- function(input,output,session) {
     
   
   output$timePlot <- renderPlotly({
-    need(input$s2pFiles)
+    req(input$s2pFiles)
     
     skrf <- import("skrf")
     file <- input$s2pFiles
@@ -351,13 +351,18 @@ server <- function(input,output,session) {
   ###################aggregation############################
   
   observeEvent(input$runRF1, {
-    rmarkdown::render(input = "C:/home/dashtest/RF_Analysis_Data_Aggregation.Rmd",params=list(pth = input$dir))
-    
+    print('Running aggregation...')
+    rmarkdown::render(input = "C:/home/dashtest/RF_Analysis_Data_Aggregation.Rmd")#params=list(pth = input$dir)
+    #rmarkdwon::render(input= "C:/home/dashtest/RF_Analysis_Part1.Rmd",params=list(pth = getwd()))
     
     #render(input="C:/home/dashtest/RF_Analysis_Part1.Rmd")
+    
+    
   })
   
-  
+  observeEvent(input$dir, {   
+    setwd(choose.dir("c:/")) #selecting a directory   
+    output$wd <- renderText(getwd())})
   
   ##########################################################
   
@@ -397,7 +402,7 @@ server <- function(input,output,session) {
     
      # Get the columns
      first_resistance_column <<- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
-     last_resistance_coluimn <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+     last_resistance_column <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
      Force_column <- which(names(d)=="LdCel.0")              #Load Cell data - forces
      cycleLength <- dim(d)[1]/numTabs()
      
@@ -410,7 +415,7 @@ server <- function(input,output,session) {
     
      # Create the plot
      plt <- plot_ly(data = d[(cycleLength*(cycle-1)):(cycleLength*cycle),], type = "scatter", mode = "lines")
-     for(i in first_resistance_column:last_resistance_coluimn){     #Add one trace for each pin 
+     for(i in first_resistance_column:last_resistance_column){     #Add one trace for each pin 
        plt <- plt %>% add_trace(x = ~External.Z.Delayed, y = d[(cycleLength*(cycle-1)):(cycleLength*cycle),i], name = names(d)[i])
      }
      d[((cycleLength*(cycle-1))):((cycleLength*cycle)),Force_column][1] <- 0
@@ -444,12 +449,12 @@ server <- function(input,output,session) {
     d <<- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE,skip=22)
     max_resistance <- 0.1
     first_resistance_column <<- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
-    last_resistance_coluimn <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+    last_resistance_column <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
     Force_column <- which(names(d)=="LdCel.0")              #Load Cell data - forces
     disp_col <- which(names(d)=="External.Z.Delayed")
     
     temp <- d[disp_col]
-    d[d>max_resistance*2] <- 0
+    d[d>max_resistance*2] <- NA
     d[disp_col] <- temp
     
     # create steps and plot all histograms
@@ -467,7 +472,7 @@ server <- function(input,output,session) {
     
     fig <- plot_ly()
     for (i in 1:(cycleLength)) {
-      fig<- fig %>% add_trace(x=unlist(d[i,first_resistance_column:last_resistance_coluimn],), visible = aval[i][[1]]$visible, type = 'histogram',
+      fig<- fig %>% add_trace(x=unlist(d[i,first_resistance_column:last_resistance_column],), visible = aval[i][[1]]$visible, type = 'histogram',
                               xaxis=list(c(0,0.2)),yaxis=list(c(0,60)),bingroup=1)
       
       step <- list(args = list('visible', rep(FALSE, length(aval))), method = 'restyle',label = d[i,disp_col])
@@ -478,7 +483,7 @@ server <- function(input,output,session) {
     # add slider control to plot
     fig <- fig %>%layout(title = 'TEC - Histogram of Resistance vs. Displacement', sliders = list(list(active = 1,
                                                                                                        currentvalue = list(prefix = "Displacement (mils): "),
-                                                                                                       steps = steps)),xaxis=list(title='Resistance (Ohms)',range=c(0.01,max_resistance)),yaxis=list(title='Frequency',range=c(0,60)))
+                                                                                                       steps = steps)),xaxis=list(title='Resistance (Ohms)',range=c(0.00,max_resistance)),yaxis=list(title='Frequency',range=c(0,60)))
     fig
     
   })
@@ -490,57 +495,52 @@ server <- function(input,output,session) {
       cycle <- cycle()
       cycleLength <- dim(d)[1]/numTabs() 
       
-      print(cycle)
-      
       d <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE, skip=22)
       max_resistance <- .1
       
       # Get the columns
       first_resistance_column <- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
-      last_resistance_coluimn <- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+      last_resistance_column <- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
       Force_column <- which(names(d)=="LdCel.0")              #Load Cell data - forces
       
        #Search through the correct rows as set by cycle variable
 
-       ncol = last_resistance_coluimn-first_resistance_column
-       for (r in (((cycle-1)*cycleLength)+1):(cycleLength*cycle)){
-         for (c in 1:ncol) {
-           #print(d[r,c+first_resistance_column])
-           if (d[r,c+first_resistance_column]>0.1){
-             row <- r
-           } else {
-             row <-10
-           }
-         }
-       }
-       
+      row <- 1
+      
+      ncol = last_resistance_column-first_resistance_column
+      for (r in (((cycle-1)*cycleLength)+1):(cycleLength*cycle)){
+        for (c in 1:ncol) {
+          if ((d[r,c+first_resistance_column] > 0.1) | is.na(d[r,c+first_resistance_column])){
+            row <- r
+          } 
+        }
+      }
+      
        #filtering into a single column, and removing outliers
-       set <- t(d[row,c(first_resistance_column:last_resistance_coluimn)])
-       subset <- round(set[set[,1]<max_resistance],4)
+       set <- t(d[row,c(first_resistance_column:last_resistance_column)])
+       subset <- round(set[set[,1]<max_resistance],3)
        
        #TEC - point at which all pins drop below 100mOhm
-       avgTEC <- round(mean(subset),4)*10e3
-       stdTEC <- round(sd(subset),4)*10e3
-       kurtTEC <- kurtosis(subset)
-       df_TEC <- c(kurtTEC,avgTEC,stdTEC,round(min(subset),3)*10e3,round(max(subset),3)*10e3,4*stdTEC,5*stdTEC,6*stdTEC,7*stdTEC)
+       avgTEC <- signif(mean(subset),4)*10e2
+       stdTEC <- signif(sd(subset),4)*10e2
+       kurtTEC <- signif(kurtosis(subset),4)
+       df_TEC <- c(kurtTEC,avgTEC,stdTEC,signif(min(subset),3)*10e2,signif(max(subset),3)*10e2,4*stdTEC,5*stdTEC,6*stdTEC,7*stdTEC)
        
        #Full Compression dataframe
-       d <- round(as.double(d[cycle*cycleLength,c(first_resistance_column:last_resistance_coluimn)]),4)
+       d <- round(as.double(d[cycle*cycleLength,c(first_resistance_column:last_resistance_column)]),5)
        
-       #Calculate the pass rate at full compression 
-       #rowN <- dim(d[,first_resistance_column:last_resistance_coluimn])[1]
-       #colN <- dim(d[,first_resistance_column:last_resistance_coluimn])[2]
-       #total <- rowN*colN
-       #failed <- sum(d[,first_resistance_column:last_resistance_coluimn]>max_resistance,na.rm=TRUE)
-       #pass_rate <- failed/total
+      #Caclulate pass rate 
+       #spec <- input$DCR_spec
+       #rowN <- dim(d[,first_resistance_column:last_resistance_column])[1]
+       #colN <- dim(d[,first_resistance_column:last_resistance_column])[2]
+       #total <- colN
+       #failed <- sum(d[cycleCount*cycle,first_resistance_column:last_resistance_column]>spec,na.rm=TRUE)
+       #pass_rate <- (1-(failed/total))
        
-       #print(pass_rate)
-       
-       
-       avgC <- round(mean(d),4)*10e3
-       stdC <- round(sd(d),4)*10e3
-       kurtC <- kurtosis(d)
-       df_Comp <- c(kurtC,avgC,stdC,round(min(d),3)*10e3,round(max(d),3)*10e3,4*stdC,5*stdC,6*stdC,7*stdC)
+       avgC <- round(mean(d),5)*10e2
+       stdC <- round(sd(d),5)*10e2
+       kurtC <- signif(kurtosis(d),4)
+       df_Comp <- c(kurtC,avgC,stdC,signif(min(d),3)*10e2,signif(max(d),3)*10e2,4*stdC,5*stdC,6*stdC,7*stdC)
        
        labels = c('Kurtosis #','mean', 'std', 'min', 'max' ,'4 sigma', '5 sigma', '6 sigma', '7 sigma')
        headers = c('TEC', 'Full Compression')
@@ -574,13 +574,13 @@ server <- function(input,output,session) {
       #remove junk
       pattern <- pattern[0:dim(x_column)[1],]
       
-      # comp <- d[dim(d)[1],first_resistance_column:last_resistance_coluimn]
+      # comp <- d[dim(d)[1],first_resistance_column:last_resistance_column]
       # comp <- as.numeric(comp)
       # pattern <- cbind(pattern,'res'=comp)
 
       #arr <- array(0,dim=c(dim(pattern)[1],(dim(pattern)[2]+1),cycle))
       
-      resData <- d[((cycle-1)+1):(cycle*cycleLength),first_resistance_column:last_resistance_coluimn,] #address each res set with resData[n,]
+      resData <- d[((cycle-1)+1):(cycle*cycleLength),first_resistance_column:last_resistance_column,] #address each res set with resData[n,]
       
       temp <- resData[1,]
       temp2 <- resData[2,]
@@ -723,7 +723,7 @@ server <- function(input,output,session) {
       
       # Get the columns
       first_resistance_column <<- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
-      last_resistance_coluimn <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+      last_resistance_column <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
       Force_column <- which(names(d)=="LdCel.0")              #Load Cell data - forces
       
       ay <- list(
@@ -736,7 +736,7 @@ server <- function(input,output,session) {
       # Create the plot
       numCycles <- dim(d)[1]
       plt <- plot_ly(data = d[1:cycleLength,], type = "scatter", mode = "lines",height=400)
-      for(i in first_resistance_column:last_resistance_coluimn){
+      for(i in first_resistance_column:last_resistance_column){
         plt <- plt %>% add_trace(x = d[1], y = d[1:cycleLength,i], name = names(d)[i])
       }
       
@@ -773,12 +773,12 @@ server <- function(input,output,session) {
       
       max_resistance <- as.double(input$maxRC)
       
-      set <- t(d[,c(first_resistance_column:last_resistance_coluimn)])
+      set <- t(d[,c(first_resistance_column:last_resistance_column)])
       subset <- round(set[set[,1]<max_resistance],4)
       
       # Get the columns
       first_resistance_column <<- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
-      last_resistance_coluimn <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+      last_resistance_column <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
       Force_column <- which(names(d)=="LdCel.0")      
       
       fig <- plot_ly(x = subset,type="histogram")
@@ -801,20 +801,25 @@ server <- function(input,output,session) {
       
       # Get the columns
       first_resistance_column <- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
-      last_resistance_coluimn <- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+      last_resistance_column <- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
       Force_column <- which(names(d)=="LdCel.0")              #Load Cell data - forces
       
-      #set <- t(d[,c(first_resistance_column:last_resistance_coluimn)])
-      #subset <- set[set[,1]<max_resistance]
+      #Calculate the pass rate 
+      spec <- input$DCR_spec
+      rowN <- dim(d[,first_resistance_column:last_resistance_column])[1]
+      colN <- dim(d[,first_resistance_column:last_resistance_column])[2]
+      total <- colN*rowN
+      failed <- sum(d[,first_resistance_column:last_resistance_column]>spec,na.rm=TRUE)
+      pass_rate <- (1-(failed/total))
 
       #compute avg. and stdev. 
-      d <- as.double(unlist(d[,c(first_resistance_column:last_resistance_coluimn)]))
-      avgC <- round(mean(d),4)*10e3
-      stdC <- round(sd(d),4)*10e3
-      kurt <- kurtosis(d)
-      df_Comp <- c(kurt,avgC,stdC,round(min(d),4)*10e3,round(max(d),4)*10e3,4*stdC,5*stdC,6*stdC,7*stdC)
+      d <- as.double(unlist(d[,c(first_resistance_column:last_resistance_column)]))
+      avgC <- signif(mean(d),3)*10e2
+      stdC <- signif(sd(d),3)*10e2
+      kurt <- signif(kurtosis(subset),3)
+      df_Comp <- c(kurt,pass_rate,avgC,stdC,signif(min(d),3)*10e2,signif(max(d),3)*10e2,4*stdC,5*stdC,6*stdC,7*stdC)
       
-      labels = c('Kurtosis #','mean', 'std','min','max','4 sigma', '5 sigma', '6 sigma', '7 sigma')
+      labels = c('Kurtosis #','pass rate','mean', 'std','min','max','4 sigma', '5 sigma', '6 sigma', '7 sigma')
       headers = c('Stats (mOhm)')
       
       stats <- data.frame(metrics=labels, Stats_mOhms = df_Comp)

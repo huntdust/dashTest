@@ -3,8 +3,6 @@ title: "RF Cable Analysis"
 author: "Andrew Yokubaitis"
 output: html_document
 #date: "`r format(Sys.time(), '%d %B %Y')`"
-params: 
-  pth: true
 editor_options:
   chunk_output_type: console
 ---
@@ -36,7 +34,7 @@ options(dplyr.summarise.inform = FALSE)
 # User defined variables #
 
 
-print('running aggregation')
+#print('running aggregation')
 
 #pth <- input$RF1_pth
 #write.csv(pth,file =  'C:/users/huntdust/desktop/dir.txt')
@@ -45,10 +43,13 @@ print('running aggregation')
 #pth <- output$dir
 
 
-pth <- params$pth
+#pth <- params$pth
 #pth <- "C:/users/huntdust/Desktop/s2p_test_website/"
-pth <- gsub(pth,"\\","/")
-paste(pth,"/")
+#pth <- gsub(pth,"\\","/")
+#paste(pth,"/")
+#print(pth)
+
+pth <- "C:/users/huntdust/desktop/s2p_test_website/"
 
 save_location <- pth
 
@@ -57,10 +58,10 @@ company <- "Gore"
 cable_name <- "Keyence Integration Test"
 
 # Total number of cycles the cable experienced during the collection of this data set
-total_cycles <- 1362
+total_cycles <- 4
 
 # Sets the Number of cycles between measurements; allows use of less data to lower computation time
-cycs_between_meas <- 5
+cycs_between_meas <- 1
 
 # declare how many cables are included in this data set so that the max phase shift between cables can be correctly calculated
 num_cables <- 1
@@ -124,7 +125,6 @@ names(fileinfo) <- c("filenames", "filetimes")
 
 
 
-print(s2p_pth)
 # End of User Defined Variables #
 #################################
 

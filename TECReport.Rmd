@@ -11,7 +11,7 @@ params:
   cycle: TRUE
 ---
 
-```{r, echo=FALSE,figures-side,warning = FALSE}
+```{r, echo=FALSE,figures-side,warning = FALSE,eval=FALSE}
 
 ###################################TEC & FORCE PLOT##################################################################################
      library(cowplot)
@@ -132,14 +132,12 @@ params:
       #subplot(TEC_plt,plt,widths=c(0.8,0.2),margin = 0.07)     
    
 
-      
-      
-      
-      
 ##########################HISTOGRAM###################################################
       
       
 ```
+
+
 
 <div>
  <div style = "float:left">
@@ -157,7 +155,7 @@ params:
 
 
 
-```{r, echo=FALSE,warning = FALSE}
+```{r, echo=FALSE,warning = FALSE,eval=FALSE}
 library(knitr)
 kable(params$stats)
 ```
