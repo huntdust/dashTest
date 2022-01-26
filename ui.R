@@ -4,27 +4,58 @@ library(plotly)
 library(markdown)
 library(rmarkdown)
 library(knitr)
+library(shinywebcam)
 library(bslib)
-library(shinyFiles)
-library(DT)
+library(esquisse)
 
-datapath <- "/mnt/Gryffindor/Data_and_Results"
-analysispath <- "/opt/shiny-server/samples/sample-apps/dashtest/analysis"
-RMDPath <- "/opt/shiny-server/samples/sample-apps/dashtest/rmd"
+
+datapath <- "C:/Users/huntdust/Desktop/ShinyServer/"
+analysispath <- "C:/home/dashTest/Analysis/"
+RMDPath <- "C:/home/dashTest/rmd/"
 datafiles <- list.files(datapath)
 analysisfiles <- list.files(analysispath)
 analysistypes <- list.files(RMDPath)
-setwd("/opt/shiny-server/samples/sample-apps/dashtest")
 
+setwd("C:/home/dashTest")
 
 ui <- 
-  navbarPage("Data visualization and analysis tools",id='tabs', collapsible = TRUE, inverse = TRUE, theme = shinytheme("cyborg"),
+  navbarPage("Demo", collapsible = TRUE, inverse = TRUE, theme = shinytheme("darkly"),
+             tabPanel("SamplePlot",
+                      fluidPage(
+                        tabsetPanel(
+                          tabPanel("Plot1",br(),
+                                   sidebarLayout(
+                                     sidebarPanel(
+                                       radioButtons(
+                                         inputId = "plotSelection",
+                                         label = "Choose a plot",
+                                         choices = c("Temperature",
+                                                     "Humidity")), br()
+                                     ),
+                                     
+                                     mainPanel(plotlyOutput(outputId = "samplePlot",height="600px"))
+                                   )),
+                          
+                          tabPanel("Plot2",br(),
+                                   sidebarLayout(
+                                     sidebarPanel(
+                                       radioButtons(
+                                         inputId = "plotSelection",
+                                         label = "Choose a plot",
+                                         choices = c("Temperature",
+                                                     "Humidity")), br()
+                                     ),
+                                     
+                                     mainPanel(plotlyOutput(outputId = "samplePlotTwo", height = "600px"))
+                                   ))
+                        )
+                      )),
              tabPanel("Temperature/Humidity Plots",
                       fluidPage(
                         tabsetPanel(
                           tabPanel("Temperature", br(),
                                    sidebarLayout(
-                                     sidebarPanel(width=3,
+                                     sidebarPanel(
                                        radioButtons(
                                          inputId = "timescaleTemp",
                                          label = "Timescale",
@@ -45,12 +76,12 @@ ui <-
                                                      "All"))
                                      ),
                                      mainPanel(
-                                       plotlyOutput(outputId = "tempPlot", height = "800px", width = "900px")
+                                       plotlyOutput(outputId = "tempPlot", height = "1000px", width = "900px")
                                      )
                                    )),
                           tabPanel("Humidity", br(),
                                    sidebarLayout(
-                                     sidebarPanel(width=3,
+                                     sidebarPanel(
                                        radioButtons(
                                          inputId = "timescaleHum",
                                          label = "Timescale",
@@ -75,7 +106,7 @@ ui <-
                                        #imageOutput(outputId = "humPlot", height = "900px", width="900px")
                                      )
                                    ))
-                    
+                          
                           
                         ))),
              tabPanel("HTML Demos",
@@ -108,152 +139,28 @@ ui <-
                                        
                                      )
                                    ))
-                        ))),
-             tabPanel("S2P plot",
+                        ))), 
+             tabPanel("Live plot generation",
+                      
+                      #includeMarkdown("test.rmd")
+                      uiOutput("md_file")
+                      
+                      
+             ),
+             tabPanel("esquisse test",
                       fluidPage(
                         sidebarLayout(
                           sidebarPanel(
-                            fileInput(
-                              inputId = "s2pFiles",
-                              label = "Select S2P files",
-                              multiple = TRUE,
-                              buttonLabel = "Browse...",
-                              placeholder = "No file selected"
-                            ),
-                            downloadButton("report", "Generate report"), 
-                            #checkboxInput("includeStats_s2p", "include statistical analysis", value = FALSE)
+                            #takeSnapshot(),
+                            #snapshotButton(),
                           ),
                           mainPanel(
-                            fluidRow(
-                              plotlyOutput(outputId = "s2pPlot")
-                            ), br(),
-                            fluidRow(
-                              plotlyOutput(outputId = "s2pPlot2")
-                            ), br(),
-                            fluidRow(
-                              plotlyOutput(outputId = "timePlot")
-                            )
-                           
-                          
-                           #plotlyOutput(outputId = "s2pPlot")
-                            
-                          #  fluidRow(
-                          #    plotlyOutput(outputId = "s2pPlot")
-                          #  ), br(),
-                          #  fluidRow(
-                          #    plotlyOutput(outputId = "timePlot")
-                          #  )
-                         
-                            
+                            #startWebcam(width = 320, height = 240, quality = 100),
+                            #imageOutput('outImage')
                           )
                         )
                       )
              ),
-             tabPanel("Advanced RF Analysis",
-                      tabsetPanel(
-                        tabPanel("RF Analysis Part 1",
-                           fluidPage(     
-                            sidebarLayout(
-                              sidebarPanel(
-                                      actionButton("dir", 'select a folder'), 
-                                      #shinyDirButton("dir", "Input directory", "Upload"),
-                                      #shinyFilesButton('s2p_dir',"Input directory",title="Input s2p directory",multiple='True'),
-                                      verbatimTextOutput("wd", placeholder = TRUE),
-                                      #actionButton("runRF1", "Generate Report",class = "btn-success"), br(), br(),
-                                      actionButton("runRF1", "Download Report",class = "btn-success"),
-                                      
-                                   ),
-                              mainPanel(
-                                textOutput(""),
-                                htmlOutput("RF1_analysis")
-                                #selectInput(inputId = "dataSelection",label= "Select dataset", choices = datafiles)
-                                
-                              ))
-                                 )),
-                        tabPanel("RF Anaslysis Part 2",
-                            sidebarPanel(
-                                  actionButton("runRF2", "Run Analysis",class = "btn-success"),
-                                  selectInput(inputId = "RF1_pth",label= "", choices = getwd()),
-                                  actionButton("dir", 'select a folder'),
-                                  actionButton("runRF1", "Run Analysis",class = "btn-success"), br(), br(),
-                                  actionButton("downloadRF1", "Download Report",class = "btn-success"),
-                                  dir <- getwd(),
-                                 ))
-                           )
-                        ),
-             tabPanel("TEC Plot",
-                      fluidPage(
-                        sidebarLayout(
-                          sidebarPanel(width=3,
-                            fileInput(
-                              inputId = "TEC_File",
-                              label = "Select TEC Data",
-                              multiple = FALSE,
-                              buttonLabel = "Browse...",
-                              placeholder = "No file selected"
-                            ),
-                            fileInput(
-                              inputId = "padFile",
-                              label = "Select Pad Package Input File",
-                              multiple = FALSE,
-                              buttonLabel = "Browse...",
-                              placeholder = "No file selected"
-                            ),
-                            textInput("maxR",label='Resistance Threshold',value='0.1'),
-                            #textInput("DCR_spec",label='DCR Specification',value='0.1'),
-                            downloadButton("TECReport", "Generate report")
-                            #shinyFilesButton('TEC_File',label = 'File select', title = 'Please select file', multiple = FALSE)
-                          ),
-                          mainPanel(
-                             # do.call(tabsetPanel, c(id='tab',lapply(1:5, function(i) {
-                             #     tabPanel(
-                             #        title=paste0('tab ', i),
-                             #        textOutput(paste0('out',i)),
-                             #        #plotlyOutput(outputId = "TEC_Analysis", height = "1000px", width = "900px"),
-                             #        #DTOutput("TEC_Stats", width = "100%",height = "auto")
-                             #   )
-                             # })))
-                            
-                        
-                            uiOutput('slider'),
-                            plotlyOutput(outputId = "TEC_Analysis", height = "700px", width = "900px"),
-                            
-                            
-                            fluidRow(
-                                     #uiOutput('slider')
-                                     #column(6,plotlyOutput(outputId = "TEC_Analysis", height = "700px", width = "900px"),style='padding-left:0px; padding-right:0px; padding-top:0px; padding-bottom:0px'),
-                                     column(6,plotlyOutput(outputId = 'pads',width='70%',height="700px"),style='padding-left:0px; padding-right:0px; padding-top:50px; padding-bottom:0px'),
-                                     column(6,plotlyOutput(outputId = 'TECHist',width='100%',height="700px"),style='padding-left:10px; padding-right:0px; padding-top:50px; padding-bottom:0px')
-                            ),
-                            
-        
-                            DTOutput("TEC_Stats", width = "90%",height = "auto")
-                          )
-                        )
-                      )   
-             ),
-          tabPanel("Cycle Plot",
-                   fluidPage(
-                     sidebarLayout(
-                       sidebarPanel(
-                         fileInput(
-                           inputId = "Cycles_File",
-                           label = "Select Cycling Data",
-                           multiple = TRUE,
-                           buttonLabel = "Browse...",
-                           placeholder = "No file selected"
-                         ),
-                         textInput("maxRC",label='Resistance Threshold',value='0.1'),
-                         textInput("DCR_spec",label='DCR Specification',value='0.1'),
-                         checkboxInput("enableForce", "Show force trace", value = FALSE), br(), br(), 
-                         downloadButton("cycleReport", "Generate report")
-                       ),
-                       mainPanel(
-                         plotlyOutput(outputId='CyclesPlot'), br(), br(), br(),
-                         plotlyOutput(outputId='CyclesHist'), br(),
-                         DTOutput("cycleStats", width = "90%",height = "auto")  
-                       )
-                     )
-                   )
-                   )
+             tabPanel("About")
+             
   )
