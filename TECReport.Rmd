@@ -2,23 +2,23 @@
 title: "TEC Analysis"
 output: html_document
 params:
-  TEC_File: TRUE
-  padFile: TRUE
-  maxR: TRUE
-  TECSlider: TRUE 
-  stats: TRUE
-  numTabs: TRUE
-  cycle: TRUE
+  TEC_File: NA
+  padFile: NA
+  maxR: NA
+  TECSlider: NA
+  stats: NA
+  numTabs: NA
+  cycle: NA
 ---
 
-```{r, echo=FALSE,figures-side,warning = FALSE}
+```{r, echo=FALSE,figures-side,warning = FALSE,eval=TRUE}
 
 ###################################TEC & FORCE PLOT##################################################################################
      library(cowplot)
 
      cycle <- params$TECSlider
+     numTabs <- params$numTabs
      
-    
      file <- params$TEC_File
      data <- tools::file_ext(file$datapath)
      
@@ -27,20 +27,22 @@ params:
     
      # Get the columns
      first_resistance_column <<- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
-     last_resistance_coluimn <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+     last_resistance_column <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
      Force_column <- which(names(d)=="LdCel.0")              #Load Cell data - forces
-     cycleLength <- dim(d)[1]/params$numTabs
+     cycleLength <- dim(d)[1]/numTabs
      
      ay <- list(
      tickfont = list(color='red'),
      overlaying = "y",
      side = "right",
      title = "<b>Force</b> (lbs)"
+     #position=1
+     #anchor= 'free'
      )
     
      # Create the plot
      plt <- plot_ly(data = d[(cycleLength*(cycle-1)):(cycleLength*cycle),], type = "scatter", mode = "lines")
-     for(i in first_resistance_column:last_resistance_coluimn){
+     for(i in first_resistance_column:last_resistance_column){     #Add one trace for each pin 
        plt <- plt %>% add_trace(x = ~External.Z.Delayed, y = d[(cycleLength*(cycle-1)):(cycleLength*cycle),i], name = names(d)[i])
      }
      d[((cycleLength*(cycle-1))):((cycleLength*cycle)),Force_column][1] <- 0
@@ -54,18 +56,16 @@ params:
                           title = plt_title,
                           yaxis2 = ay,
                           showlegend = FALSE,
-                          margin=list(b=20,t=50,r=50,l=50)
+                          margin = list(b=20,t=50,r=50,l=50)
                           )
+     
      TEC_plt <- plt
-     #TEC_plt
-     
-     
      
      
      ###############################PAD PACKAGE PLOT#########################################
      
       cycle <- params$cycle
-      cycleLength <- dim(d)[1]/params$numTabs 
+      cycleLength <- dim(d)[1]/numTabs
       y_scale <- as.double(params$maxR)
       
       #read the params pad pattern
@@ -82,25 +82,31 @@ params:
       x_column <- na.omit(pattern['X'])
       y_column <- na.omit(pattern['Y'])
       
+      
       #remove junk
       pattern <- pattern[0:dim(x_column)[1],]
       
-      # comp <- d[dim(d)[1],first_resistance_column:last_resistance_coluimn]
+      # comp <- d[dim(d)[1],first_resistance_column:last_resistance_column]
       # comp <- as.numeric(comp)
       # pattern <- cbind(pattern,'res'=comp)
 
       #arr <- array(0,dim=c(dim(pattern)[1],(dim(pattern)[2]+1),cycle))
       
-      resData <- d[((cycle-1)+1):(cycle*cycleLength),first_resistance_column:last_resistance_coluimn,] #address each res set with resData[n,]
+      resData <- d[((cycle-1)+1):(cycle*cycleLength),first_resistance_column:last_resistance_column,] #address each res set with resData[n,]
+      
+      #pattern <- cbind(pattern,names)
       
       temp <- resData[1,]
       temp2 <- resData[2,]
       sheet1 <- pattern
-      sheet2<- pattern
+      sheet2 <- pattern
       sheet1$res <- t(temp)
       sheet2$res <- t(temp2)
-      sheet1$cycle <- 1
-      sheet2$cycle <- 2
+      
+      #sheet1$cycle <- 1
+      #sheet2$cycle <- 2
+      sheet1$Displacement <- d[cycle,disp_col]
+      sheet2$Displacement <- d[cycle+1,disp_col]
   
       #arr <- abind(sheet1,sheet2,along=3)
       arr <- rbind(sheet1,sheet2)
@@ -114,37 +120,102 @@ params:
         #Append resistance data for each cyle to the pattern data to create a sheet
         sheet <- pattern
         sheet$res <- t(temp)
-        sheet$cycle <- i
+        #sheet$cycle <- i
+        sheet$Displacement <- d[i*(cycle),disp_col]
         #Append sheet to three dimensional array initialized outside of the loop
         arr <- rbind(arr,sheet)
+        
+        #append pin names 
+        
       }
       res_c <- which(names(arr)=='res')
       arr[arr$res>y_scale,res_c] <- y_scale
-      
        
       #To animate this, need to have exactly one variable that corresponds to the X/Y position sheet
       #Or, could append sheets vertically and have an additional column label for cycle, and set frame to cycle 
-      plt <- plot_ly(data=arr,x=~X,y=~Y,type = 'scatter',mode='markers',color=~res,frame=~cycle)
+      
+      #marker=list(color=~res,colorscale="Rainbow",showscale=TRUE
+      #frame needs to show displacement, not cycle...    frame=~cycle
+      plt <- plot_ly(data=arr,x=~X,y=~Y,type = 'scatter',mode='markers',frame=~Displacement,color=~res,text=~paste(Contact.Name, " ",res))
       plt <- plt %>% layout(title='Pad pattern',xaxis = list(title = ""),yaxis = list(title = ""))
-      plt <- plt %>% animation_opts(frame = 20)
-      
-      
+      plt <- plt %>% animation_opts(frame=20)
+      pad_plt <- plt
       #subplot(TEC_plt,plt,widths=c(0.8,0.2),margin = 0.07)     
    
 
-      
-      
-      
-      
 ##########################HISTOGRAM###################################################
       
+    req(params$TECSlider, params$TEC_File)
+    cycle <- params$TECSlider
+    
+
+    file <- params$TEC_File
+    data <- tools::file_ext(file$datapath)
+
+    cycleLength <- dim(d)[1]/numTabs
+    
+    d <<- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE,skip=22)
+    max_resistance <- 0.1
+    first_resistance_column <<- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
+    last_resistance_column <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+    Force_column <- which(names(d)=="LdCel.0")              #Load Cell data - forces
+    disp_col <- which(names(d)=="External.Z.Delayed")
+    
+    temp <- d[disp_col]
+    d[d>max_resistance*2] <- NA
+    d[disp_col] <- temp
+    
+    # create steps and plot all histograms
+    steps <- list()
+    aval <- list()
+    
+    x <- seq(0,10, length.out = 1000)
+    
+    for(step in 1:cycleLength){
+      aval[[step]] <-list(visible = FALSE,
+                          name = paste0('v = ', step),
+                          x=x,
+                          y=sin(step*x))
+    }
+    
+    fig <- plot_ly()
+    xbins <- list(start=0,end=max_resistance,size=0.0005)
+    for (i in 1:(cycleLength)) {
       
+      data <- unlist(d[i,first_resistance_column:last_resistance_column])
+      avg <- mean(data)
+      std <- sd(data)
+      
+      fig<- fig %>% add_trace(x=unlist(d[i,first_resistance_column:last_resistance_column],), visible = aval[i][[1]]$visible, type = 'histogram',
+                              xaxis=list(c(0,0.2)),yaxis=list(c(0,60)),xbins=xbins)
+      #fig<- fig %>% add_segments(x = mean, xend = mean, y = 0, yend = 10)
+      
+      #Add lines to demarcate mean & std 
+      #fig <- fig %>% layout(shapes = list(vline(mean)),visible = aval[i][[1]]$visible)
+      
+      step <- list(args = list('visible', rep(FALSE, length(aval))), method = 'restyle',label = d[i,disp_col])
+      step$args[[2]][i] = TRUE  
+      steps[[i]] = step 
+    }  
+    
+    # add slider control to plot
+    fig <- fig %>%layout(title = 'TEC - Histogram of Resistance vs. Displacement', sliders = list(list(active = 1,
+                                                                                                       currentvalue = list(prefix = "Displacement (mils): "),
+                                                                                                       steps = steps)),xaxis=list(title='Resistance (Ohms)',range=c(0.00,max_resistance)),yaxis=list(title='Frequency',range=c(0,60)))
+    TEC_Hist <- fig
+      
+    
+  
+    
 ```
+
 
 <div>
  <div style = "float:left">
  ```{r echo = F, fig.width = 6, fig.height = 6}
+
  TEC_plt
+
  ```
  </div>
 
@@ -155,18 +226,20 @@ params:
  </div>
 </div>
 
+<br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+
+```{r, echo=FALSE,warning = FALSE,eval=TRUE}
+TEC_Hist
+```
 
 
-```{r, echo=FALSE,warning = FALSE}
+
+```{r, echo=FALSE,warning = FALSE,eval=TRUE}
 library(knitr)
 kable(params$stats)
 ```
 
 
-
-```{r pressure, echo=FALSE}
-#plot(pressure)
-```
 
 
  
