@@ -9,22 +9,12 @@ library(plotly)
 library(abind)
 library(e1071) 
 
-#test comment 
-#test comment 2
-###############
-
-############
-
-
-options(shiny.maxRequestSize=30*1024^2)
+options(shiny.maxRequestSize=300*1024^2)
 
 analysispath <- "/opt/shiny-server/samples/sample-apps/dashtest/analysis"
 addResourcePath("tmpuser",getwd())
 reticulate::use_virtualenv("/opt/shiny-server/samples/sample-apps/dashtest/testenv",required=TRUE)
 reticulate::use_python("/usr/bin/python2.7")
-
-
-addResourcePath("tmpuser",getwd())
 
 server <- function(input,output,session) {
   
@@ -32,7 +22,6 @@ server <- function(input,output,session) {
   volumes <- getVolumes()
   #volumes <- c(Home = fs::path_home())
   basepath <- '/opt/shiny-server/samples/sample-apps/dashtest/'
-
   ev <- reactiveValues(data=NULL)
   
   source(file.path("samplePlot.R"), local = TRUE)$value  #sample plot
@@ -40,21 +29,6 @@ server <- function(input,output,session) {
   source(file.path("tempPlot.R"), local=TRUE)$value      #Temp Plot
   source(file.path("humPlot.R"), local=TRUE)$value      #Temp Plot
   
-  groupInput <- reactive({
-    switch(input$group1,
-           "Student Status" = survey$status, 
-           "Country / Region of Origin" = survey$country, 
-           "Major" = survey$major)
-  })
-  
-  dataInput <- reactive({
-    switch(input$question1, 
-           "Email/chat with library staff" = survey$Q1.1_2, 
-           "Find books" = survey$Q1.1_7, 
-           "Search for articles" = survey$Q1.1_4, 
-           "Use subject / citation guides" = survey$Q1.1_6,
-           "Book a group study room" = survey$Q1.1_3)
-  })
   
   plotSensors <- reactive({
     switch(input$humSensors,
@@ -75,6 +49,18 @@ server <- function(input,output,session) {
            "all")
   })
   
+  vline <- function(x = 0, color = "red") {
+    list(
+      type = "line", 
+      y0 = 0, 
+      y1 = 1, 
+      yref = "paper",
+      x0 = x, 
+      x1 = x, 
+      line = list(color = color)
+    )
+  }
+  
   
   observeEvent(input$runAnalysis, {
     #should a seperate version of these scripts be kept with different file paths for the server? The paths are inherently different...
@@ -87,6 +73,8 @@ server <- function(input,output,session) {
     render(input = input_file, "html_document", output_file = output_file) 
     
   })
+  
+  
   
   # observeEvent(input$runRF1, {
   #   #should a seperate version of these scripts be kept with different file paths for the server? The paths are inherently different...
@@ -123,27 +111,7 @@ server <- function(input,output,session) {
   #this style of function could be used to dynamically perform ui behaviors like rendering an RMD document... 
   output$htmlout <- renderUI({getPage()})
   
-  
-  output$samplePlot <- renderPlotly({
-    samplePlot <- ggplot(data, aes(x=x,y=random_y)) +geom_point()
-    samplePlot <- ggplotly(samplePlot)
-    samplePlot
-  })
-  
-  output$samplePlotTwo <- renderPlotly({
-    gg <- ggplot(midwest, aes(x=area, y=poptotal)) + 
-      geom_point(aes(col=state, size=popdensity)) + 
-      geom_smooth(method="loess", se=F) + 
-      xlim(c(0, 0.1)) + 
-      ylim(c(0, 500000)) + 
-      labs(subtitle="Area Vs Population", 
-           y="Population", 
-           x="Area", 
-           title="Scatterplot", 
-           caption = "Source: midwest")
-    
-    gg
-  })
+
   #shinyFileChoose(input, 'files', root=c(root='.'), filetypes=c('', '.txt', '.html', '.s2p', '.R', '.Rmd'))
   
 
@@ -272,7 +240,7 @@ server <- function(input,output,session) {
         cnt <- cnt+1
     }}
     
-    tdr <- tdr %>% layout(title='Time Domain Conversion',xaxis=list(title='Time (s)'),yaxis=list(title='Impedance (Ohm)'),legend = list(orientation="h",y=-0.3)) 
+    tdr <- tdr %>% layout(title='Time Domain Conversion',xaxis=list(title='Time (ns)'),yaxis=list(title='Impedance (Ohm)'),legend = list(orientation="h",y=-0.3)) 
     tdr
     
     #test
@@ -357,18 +325,35 @@ server <- function(input,output,session) {
   ###################aggregation############################
   
   observeEvent(input$runRF1, {
-    print('Running aggregation...')
-    rmarkdown::render(input = "C:/home/dashtest/RF_Analysis_Data_Aggregation.Rmd")#params=list(pth = input$dir)
+    #print('Running aggregation...')
+    #render(input = "C:/home/dashtest/RF_Analysis_Data_Aggregation.Rmd")#params=list(pth = input$dir)
     #rmarkdwon::render(input= "C:/home/dashtest/RF_Analysis_Part1.Rmd",params=list(pth = getwd()))
+    rmarkdown::render('C:/home/dashtest/RF_Analysis_Data_Aggregation.Rmd')
+    #rmarkdown::render('C:/home/dashtest/RF_Analysis_Part1.Rmd')
     
     #render(input="C:/home/dashtest/RF_Analysis_Part1.Rmd")
     
     
   })
   
+  output$S2p_Analysis <- downloadHandler(
+    
+    # For PDF output, change this to "report.pdf"
+    rmarkdown::render('C:/home/dashtest/RF_Analysis_Data_Aggregation.Rmd',params=list(pth = s2p_dir()), envir = new.env(parent = globalenv()))
+    #rmarkdown::render('C:/home/dashtest/RF_Analysis_Part1.Rmd',params=list(pth = getwd()) ,envir = new.env(parent = globalenv()))                                  
+  )
+  
+  
+  
   observeEvent(input$dir, {   
     setwd(choose.dir("c:/")) #selecting a directory   
-    output$wd <- renderText(getwd())})
+    output$wd <- renderText(getwd())
+    })
+  
+  s2p_dir <- reactive({
+    s2p_dir <- input$dir
+    s2p_dir
+    })
   
   ##########################################################
   
@@ -394,6 +379,7 @@ server <- function(input,output,session) {
 ###############TEC ANALYSIS###########################################
   
     output$TEC_Analysis <- renderPlotly({
+     withProgress(message = "Rendering plot...", value=0,{
       
     #introduce tab/TEC number feature - TEC_Analysis needs to accept plot # argument 
      req(input$TECSlider, input$TEC_File)
@@ -417,6 +403,8 @@ server <- function(input,output,session) {
      overlaying = "y",
      side = "right",
      title = "<b>Force</b> (lbs)"
+     #position=1
+     #anchor= 'free'
      )
     
      # Create the plot
@@ -438,14 +426,15 @@ server <- function(input,output,session) {
                           margin = list(b=20,t=50,r=50,l=50)
                           )
      plt
+     })
    
   })
   
   #Histogram plot for TEC - animated histogram vs. displacement 
   output$TECHist <- renderPlotly({
+    withProgress(message = "Rendering plot...", value=0,{
     req(input$TECSlider, input$TEC_File)
     cycle <- input$TECSlider
-    
     
     file <- input$TEC_File
     data <- tools::file_ext(file$datapath)
@@ -477,9 +466,19 @@ server <- function(input,output,session) {
     }
     
     fig <- plot_ly()
+    xbins <- list(start=0,end=max_resistance,size=0.0005)
     for (i in 1:(cycleLength)) {
+      
+      data <- unlist(d[i,first_resistance_column:last_resistance_column])
+      avg <- mean(data)
+      std <- sd(data)
+      
       fig<- fig %>% add_trace(x=unlist(d[i,first_resistance_column:last_resistance_column],), visible = aval[i][[1]]$visible, type = 'histogram',
-                              xaxis=list(c(0,0.2)),yaxis=list(c(0,60)),bingroup=1)
+                              xaxis=list(c(0,0.2)),yaxis=list(c(0,60)),xbins=xbins)
+      #fig<- fig %>% add_segments(x = mean, xend = mean, y = 0, yend = 10)
+      
+      #Add lines to demarcate mean & std 
+      #fig <- fig %>% layout(shapes = list(vline(mean)),visible = aval[i][[1]]$visible)
       
       step <- list(args = list('visible', rep(FALSE, length(aval))), method = 'restyle',label = d[i,disp_col])
       step$args[[2]][i] = TRUE  
@@ -491,7 +490,7 @@ server <- function(input,output,session) {
                                                                                                        currentvalue = list(prefix = "Displacement (mils): "),
                                                                                                        steps = steps)),xaxis=list(title='Resistance (Ohms)',range=c(0.00,max_resistance)),yaxis=list(title='Frequency',range=c(0,60)))
     fig
-    
+    })
   })
   
     stats <-reactive({
@@ -502,12 +501,14 @@ server <- function(input,output,session) {
       cycleLength <- dim(d)[1]/numTabs() 
       
       d <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE, skip=22)
-      max_resistance <- .1
+      max_resistance <- input$maxR
+      TEC_spec <- as.double(input$TEC_spec)
       
       # Get the columns
       first_resistance_column <- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
       last_resistance_column <- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
       Force_column <- which(names(d)=="LdCel.0")              #Load Cell data - forces
+      disp_col <<- which(names(d)=="External.Z.Delayed")
       
        #Search through the correct rows as set by cycle variable
 
@@ -516,49 +517,75 @@ server <- function(input,output,session) {
       ncol = last_resistance_column-first_resistance_column
       for (r in (((cycle-1)*cycleLength)+1):(cycleLength*cycle)){
         for (c in 1:ncol) {
-          if ((d[r,c+first_resistance_column] > 0.1) | is.na(d[r,c+first_resistance_column])){
-            row <- r
+          if ((d[r,c+first_resistance_column] > TEC_spec) | is.na(d[r,c+first_resistance_column])){
+            row <- r+1
           } 
         }
       }
+       
+      #find TEC and compression points 
+       
+       if(input$TEC_Point!="") { 
+       TEC_point <- as.double(input$TEC_Point)
+       row <- which(d[,disp_col]==TEC_point)
+       } else {TEC_point <- d[row,disp_col]}
       
+       TEC_header <- paste('TEC(mOhms) -',toString(TEC_point),' mils')
+       compressed_header <- paste("Compressed(mOhms) - ",toString(d[cycleLength,disp_col]), ' mils')
+       
+       
        #filtering into a single column, and removing outliers
        set <- t(d[row,c(first_resistance_column:last_resistance_column)])
-       subset <- round(set[set[,1]<max_resistance],3)
+       #subset <- round(set[set[,1]<max_resistance],3)
+       subset <- set
        
-       #TEC - point at which all pins drop below 100mOhm
+       #Calculate stats at TEC point 
        avgTEC <- signif(mean(subset),4)*10e2
        stdTEC <- signif(sd(subset),4)*10e2
        kurtTEC <- signif(kurtosis(subset),4)
-       df_TEC <- c(kurtTEC,avgTEC,stdTEC,signif(min(subset),3)*10e2,signif(max(subset),3)*10e2,4*stdTEC,5*stdTEC,6*stdTEC,7*stdTEC)
+       df_TEC <- c(kurtTEC,avgTEC,stdTEC,signif(min(subset),3)*10e2,signif(max(subset),3)*10e2,avgTEC+(4*stdTEC),avgTEC+(5*stdTEC),avgTEC+(6*stdTEC),avgTEC+(7*stdTEC), 'NA')
+       
+       
+       
+       #Calculate pass rate at full compression 
+       numPins <- dim(d[,first_resistance_column:last_resistance_column])[2]
+       numFails <- sum(d[cycleLength*cycle,first_resistance_column:last_resistance_column]>max_resistance,na.rm=TRUE)
+       pass_rate <- 100-((numFails/numPins)*100)
+       
        
        #Full Compression dataframe
        d <- round(as.double(d[cycle*cycleLength,c(first_resistance_column:last_resistance_column)]),5)
        
       #Caclulate pass rate 
-       #spec <- input$DCR_spec
        #rowN <- dim(d[,first_resistance_column:last_resistance_column])[1]
        #colN <- dim(d[,first_resistance_column:last_resistance_column])[2]
        #total <- colN
        #failed <- sum(d[cycleCount*cycle,first_resistance_column:last_resistance_column]>spec,na.rm=TRUE)
        #pass_rate <- (1-(failed/total))
        
+      
+       #Calculate statistics at full compression 
        avgC <- round(mean(d),5)*10e2
        stdC <- round(sd(d),5)*10e2
        kurtC <- signif(kurtosis(d),4)
-       df_Comp <- c(kurtC,avgC,stdC,signif(min(d),3)*10e2,signif(max(d),3)*10e2,4*stdC,5*stdC,6*stdC,7*stdC)
+       df_Comp <- c(kurtC,avgC,stdC,signif(min(d),3)*10e2,signif(max(d),3)*10e2,avgC+(4*stdC),avgC+(5*stdC),avgC+(6*stdC),avgC+(7*stdC), pass_rate)
        
-       labels = c('Kurtosis #','mean', 'std', 'min', 'max' ,'4 sigma', '5 sigma', '6 sigma', '7 sigma')
+       labels = c('Kurtosis #','mean', 'std', 'min', 'max' ,'mean + 4 sigma', 'mean + 5 sigma', 'mean + 6 sigma', 'mean + 7 sigma', 'pass rate (%)')
        headers = c('TEC', 'Full Compression')
        
-       stats <- data.frame(metrics=labels,TEC_mOhms = df_TEC, COMPRESSED_mOhms = df_Comp)
+       stats <- data.frame(metrics=labels,TEC_header = df_TEC, Compressed_header = df_Comp)
+       
+       #Rename the headers based on the TEC point and compression point 
+       names(stats)[names(stats)=="TEC_header"] <- TEC_header
+       names(stats)[names(stats)=="Compressed_header"] <- compressed_header
   
        stats
   })
-    
 
     #render pad package 
     output$pads <- renderPlotly({
+      withProgress(message = "Rendering plot...", value=0,{
+
       cycle <- cycle()
       cycleLength <- dim(d)[1]/numTabs() 
       y_scale <- as.double(input$maxR)
@@ -577,6 +604,7 @@ server <- function(input,output,session) {
       x_column <- na.omit(pattern['X'])
       y_column <- na.omit(pattern['Y'])
       
+      
       #remove junk
       pattern <- pattern[0:dim(x_column)[1],]
       
@@ -587,15 +615,25 @@ server <- function(input,output,session) {
       #arr <- array(0,dim=c(dim(pattern)[1],(dim(pattern)[2]+1),cycle))
       
       resData <- d[((cycle-1)+1):(cycle*cycleLength),first_resistance_column:last_resistance_column,] #address each res set with resData[n,]
+      print('resdata dimensions')
+      print(dim(resData))
+      
+      print('pattern dimensions')
+      print(dim(pattern))
+      
+      #pattern <- cbind(pattern,names)
       
       temp <- resData[1,]
       temp2 <- resData[2,]
       sheet1 <- pattern
-      sheet2<- pattern
+      sheet2 <- pattern
       sheet1$res <- t(temp)
       sheet2$res <- t(temp2)
-      sheet1$cycle <- 1
-      sheet2$cycle <- 2
+      
+      #sheet1$cycle <- 1
+      #sheet2$cycle <- 2
+      sheet1$Displacement <- d[cycle,disp_col]
+      sheet2$Displacement <- d[cycle+1,disp_col]
   
       #arr <- abind(sheet1,sheet2,along=3)
       arr <- rbind(sheet1,sheet2)
@@ -609,23 +647,28 @@ server <- function(input,output,session) {
         #Append resistance data for each cyle to the pattern data to create a sheet
         sheet <- pattern
         sheet$res <- t(temp)
-        sheet$cycle <- i
+        #sheet$cycle <- i
+        sheet$Displacement <- d[i*(cycle),disp_col]
         #Append sheet to three dimensional array initialized outside of the loop
         arr <- rbind(arr,sheet)
+        
+        #append pin names 
+        
       }
       res_c <- which(names(arr)=='res')
       arr[arr$res>y_scale,res_c] <- y_scale
-      
        
       #To animate this, need to have exactly one variable that corresponds to the X/Y position sheet
       #Or, could append sheets vertically and have an additional column label for cycle, and set frame to cycle 
-      plt <- plot_ly(data=arr,x=~X,y=~Y,type = 'scatter',mode='markers',color=~res,frame=~cycle)
+      
+      #marker=list(color=~res,colorscale="Rainbow",showscale=TRUE
+      #frame needs to show displacement, not cycle...    frame=~cycle
+      plt <- plot_ly(data=arr,x=~X,y=~Y,type = 'scatter',mode='markers',frame=~Displacement,color=~res,text=~paste(Contact.Name, " ",res))
       plt <- plt %>% layout(title='Pad pattern',xaxis = list(title = ""),yaxis = list(title = ""))
       plt <- plt %>% animation_opts(frame=20)
       plt
       
-      #Append colors based on full compression data. Need to append column of resistances at full compression -> get from the global d frame 
-      
+      })
     })
     
     numTabs <- reactive({
@@ -667,6 +710,7 @@ server <- function(input,output,session) {
     #}) 
     
     output$TEC_Stats<- DT::renderDataTable({ 
+      req(input$TEC_File)
       dat <- datatable(stats(), options = list(paging=FALSE)) %>%
         formatStyle(names(stats()),color = 'white', backgroundColor = 'black', fontWeight = 'bold',target='row')
       return(dat)
@@ -691,7 +735,6 @@ server <- function(input,output,session) {
 #################report handler###########################
    
      output$TECReport <- downloadHandler(
-      # For PDF output, change this to "report.pdf"
       filename = "TECReport.html",
       content = function(file) {
         # Copy the report file to a temporary directory before processing it, in
@@ -716,6 +759,7 @@ server <- function(input,output,session) {
 ################CYCLE PLOTS##############################
 
     output$CyclesPlot <- renderPlotly({
+      withProgress(message = "Rendering plot...", value=0,{
       req(input$Cycles_File)
       
       #introduce tab/TEC number feature - TEC_Analysis needs to accept plot # argument
@@ -766,11 +810,13 @@ server <- function(input,output,session) {
       )
       
       plt
+      })
     })
 
     #histogram plot for cycling data 
     
     output$CyclesHist <- renderPlotly({
+      #withProgress(message = "Rendering plot...", value=0,{
       req(input$Cycles_File)
       
       file <- input$Cycles_File
@@ -778,26 +824,88 @@ server <- function(input,output,session) {
       cycleLength <- dim(d)[1]
       
       max_resistance <- as.double(input$maxRC)
-      
-      set <- t(d[,c(first_resistance_column:last_resistance_column)])
-      subset <- round(set[set[,1]<max_resistance],4)
-      
-      # Get the columns
       first_resistance_column <<- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
       last_resistance_column <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
-      Force_column <- which(names(d)=="LdCel.0")      
+      Force_column <- which(names(d)=="LdCel.0")  
+      
+      #Grouping all pins to put into the histgram 
+      #Right now, will just plot one histogram for the first cycle 
+      set <- t(d[,c(first_resistance_column:last_resistance_column)])
+      subset <- round(set[set[,1]<max_resistance],4)
+      #subset <- round(subset[subset[,1]>max_resistance],4)
+      
+      
+      #attempt to group all data
+      subset <- unlist(subset)
+      
       
       fig <- plot_ly(x = subset,type="histogram")
-      fig <- fig %>% layout(xaxis=list(title='Resistance (Ohms)',range=c(0,max_resistance)),yaxis=list(title='Frequency'),title='Histogram of All Cycles')
+      fig <- fig %>% layout(xaxis=list(title='Resistance (Ohms)',range=c(0,0.2)),yaxis=list(title='Frequency'),title='Histogram of All Cycles')
       fig
       
       #layout(title='S11',xaxis=list(title='Frequency (Ghz)'),yaxis=list(title='Magnitude of S11 (dB)'),legend = list(orientation="h",y=-0.3))
+      #})
+    })
+    
+    #Cycles histogram with slider 
+    output$CyclesHistSlider <- renderPlotly({
+      req(input$Cycles_File)
+      file <- input$Cycles_File
+      d <<- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE, skip=22)
+      cycleLength <- dim(d)[1]
+      
+      max_resistance <- as.double(input$maxRC)
+      first_resistance_column <<- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
+      last_resistance_column <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+      Force_column <- which(names(d)=="LdCel.0")  
+      
+      steps <- list()
+      aval <- list()
+      
+      x <- seq(0,10, length.out = 1000)
+      
+      for(step in 1:cycleLength){
+        aval[[step]] <-list(visible = FALSE,
+                            name = paste0('v = ', step),
+                            x=x,
+                            y=sin(step*x))
+      }
+      
+      fig <- plot_ly()
+      xbins <- list(start=0,end=max_resistance,size=0.0005)
+      for (i in 1:(cycleLength)) {
+        
+        data <- unlist(d[i,first_resistance_column:last_resistance_column])
+        avg <- mean(data)
+        std <- sd(data)
+        
+        fig<- fig %>% add_trace(x=unlist(d[i,first_resistance_column:last_resistance_column],), visible = aval[i][[1]]$visible, type = 'histogram',
+                                xaxis=list(c(0,0.2)),yaxis=list(c(0,60)),xbins=xbins)
+        #fig<- fig %>% add_segments(x = mean, xend = mean, y = 0, yend = 10)
+        
+        #Add lines to demarcate mean & std 
+        #fig <- fig %>% layout(shapes = list(vline(mean)),visible = aval[i][[1]]$visible)
+        
+        #label=
+        step <- list(args = list('visible', rep(FALSE, length(aval))), method = 'restyle')
+        step$args[[2]][i] = TRUE  
+        steps[[i]] = step 
+      }  
+      
+      # add slider control to plot
+      fig <- fig %>%layout(title = 'TEC - Histogram of Resistance vs. Displacement', sliders = list(list(active = 1,
+                                                                                                         currentvalue = list(prefix = "Displacement (mils): "),
+                                                                                                         steps = steps)),xaxis=list(title='Resistance (Ohms)',range=c(0.00,max_resistance)),yaxis=list(title='Frequency',range=c(0,60)))
+      fig
+      
+      
     })
     
     
     #stats for cycles data
     
     cycleStatsR <-reactive({
+      req(input$Cycles_File)
       file <- input$Cycles_File
       data <- tools::file_ext(file$datapath)
      
@@ -810,6 +918,17 @@ server <- function(input,output,session) {
       last_resistance_column <- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
       Force_column <- which(names(d)=="LdCel.0")              #Load Cell data - forces
       
+      
+      #Create one huge list of all the resistance values
+      set <- t(d[,c(first_resistance_column:last_resistance_column)])
+      subset <- round(set[set[,1]<max_resistance],4)
+      #subset <- round(subset[subset[,1]>max_resistance],4)
+      
+      
+      #attempt to group all data
+      subset <- unlist(subset)
+      
+      
       #Calculate the pass rate 
       spec <- input$DCR_spec
       rowN <- dim(d[,first_resistance_column:last_resistance_column])[1]
@@ -819,7 +938,8 @@ server <- function(input,output,session) {
       pass_rate <- (1-(failed/total))
 
       #compute avg. and stdev. 
-      d <- as.double(unlist(d[,c(first_resistance_column:last_resistance_column)]))
+      d <- as.double(subset)
+      d <- d[d<max_resistance]
       avgC <- signif(mean(d),3)*10e2
       stdC <- signif(sd(d),3)*10e2
       kurt <- signif(kurtosis(subset),3)
@@ -845,8 +965,10 @@ server <- function(input,output,session) {
   
   #################report handler###########################
     output$cycleReport <- downloadHandler(
+      
       # For PDF output, change this to "report.pdf"
       filename = "cyclesReport.html",
+      #withProgress(message = "Rendering plot...", value=0,{
       content = function(file) {
         # Copy the report file to a temporary directory before processing it, in
         # case we don't have write permissions to the current working dir (which
@@ -865,6 +987,7 @@ server <- function(input,output,session) {
                           envir = new.env(parent = globalenv())
         )
       }
+      #})
     )
     
 
@@ -899,11 +1022,13 @@ server <- function(input,output,session) {
     max <- as.numeric(max(data$Temperature..C.[(dim-range):dim],na.rm=TRUE))
     min <- as.numeric(min(data$Temperature..C.[(dim-range):dim],na.rm=TRUE))
     
+    print(min)
+    
     tempTicks <- seq(min,max,((max-min)/10))
     
     lowerbound <- dim-range
     dates <- data[c(lowerbound:dim),c(1:1)]
-    dates <- dates[seq(1, range, (range/5))]
+    dates <- dates[seq(1, range, (range/6))]
     
     tempPlot <- ggplot(data[c(lowerbound:dim),c(1:3)] , aes(x=factor(data[c(lowerbound:dim),c(1:1)]),y=data[c(lowerbound:dim),c(2:2)])) + 
       geom_line(aes(group=1),color='red') + labs(x = "Time (days)", y = "Temperature (C)")  + 
@@ -1002,5 +1127,6 @@ server <- function(input,output,session) {
               plot.margin = unit(c(1,2,2,3), "cm")) 
     }
   })
+  
   
 }
