@@ -1,24 +1,28 @@
 ---
-title: "Cycles Report"
 output: html_document
 params:
-  cycle_file: TRUE
-  maxRC: TRUE
-  enableForce: TRUE
-  cycleStats: TRUE
+  cycle_file: NA
+  maxRC: NA
+  enableForce: NA
+  cycleStats: NA
+  title: NA 
+  
+title: '`r params$title`'
 ---
 
-```{r, echo=FALSE,warning = FALSE}
-      
+
+
+```{r, echo=FALSE,warning = FALSE,eval=TRUE}
+
      
   #introduce tab/TEC number feature - TEC_Analysis needs to accept plot # argument
       
       file <- params$cycle_file
-      d <<- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE, skip=22)
+      d <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE, skip=22)
+      warning(d)
       cycleLength <- dim(d)[1]
       
       max_resistance <- as.double(params$maxRC)
-      
       
       # Get the columns
       first_resistance_column <<- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
@@ -66,24 +70,30 @@ params:
 ```
 
 ```{r,echo=FALSE}
-
-    file <- params$cycle_file
-    d <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE, skip=22)
-    cycleLength <- dim(d)[1]
-    
-    max_resistance <- as.double(params$maxRC)
-    
-    set <- t(d[,c(first_resistance_column:last_resistance_coluimn)])
-    subset <- round(set[set[,1]<max_resistance],4)
-    
-    # Get the columns
-    first_resistance_column <<- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
-    last_resistance_coluimn <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
-    Force_column <- which(names(d)=="LdCel.0")      
-    
-    fig <- plot_ly(x = subset,type="histogram")
-    fig <- fig %>% layout(xaxis=list(title='Resistance (Ohms)',range=c(0,max_resistance)),yaxis=list(title='Frequency'),title='Histogram of All Cycles')
-    fig
+      
+      file <- params$cycle_file
+      d <<- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE, skip=22)
+      cycleLength <- dim(d)[1]
+      
+      max_resistance <- as.double(params$maxRC)
+      first_resistance_column <<- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
+      last_resistance_column <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+      Force_column <- which(names(d)=="LdCel.0")  
+      
+      #Grouping all pins to put into the histgram 
+      #Right now, will just plot one histogram for the first cycle 
+      set <- t(d[,c(first_resistance_column:last_resistance_column)])
+      subset <- round(set[set[,1]<max_resistance],4)
+      #subset <- round(subset[subset[,1]>max_resistance],4)
+      
+      
+      #attempt to group all data
+      subset <- unlist(subset)
+      
+      
+      fig <- plot_ly(x = subset,type="histogram")
+      fig <- fig %>% layout(xaxis=list(title='Resistance (Ohms)',range=c(0,0.2)),yaxis=list(title='Frequency'),title='Histogram of All Cycles')
+      fig
 ```
 
 
@@ -93,5 +103,5 @@ library(knitr)
 kable(params$cycleStats)
 ```
 
-  
+
     
