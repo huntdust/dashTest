@@ -1,5 +1,4 @@
 ---
-title: "TEC Analysis"
 output: html_document
 params:
   TEC_File: NA
@@ -9,12 +8,29 @@ params:
   stats: NA
   numTabs: NA
   cycle: NA
+  row: NA
+  TEC_Point: NA
+  set_title: NA
+  
+
 ---
+
+
+
+---
+title: '`r params$set_title`'
+---
+
+
+
 
 ```{r, echo=FALSE,figures-side,warning = FALSE,eval=TRUE}
 
 ###################################TEC & FORCE PLOT##################################################################################
-     library(cowplot)
+     #library(cowplot)
+
+     title_var <- params$set_title
+
 
      cycle <- params$TECSlider
      numTabs <- params$numTabs
@@ -48,6 +64,17 @@ params:
      d[((cycleLength*(cycle-1))):((cycleLength*cycle)),Force_column][1] <- 0
      plt <- plt %>% add_trace(x= ~External.Z.Delayed,y=na.omit(d[((cycleLength*(cycle-1))):((cycleLength*cycle)),Force_column]),name = "Force", yaxis="y2",line=list(width=5,color='red'))      #Force trace
          # Add labels and set range limit
+     
+     
+     #add TEC point trace
+     if(params$TEC_Point!="") { 
+       TEC_point <- as.double(params$TEC_Point)
+       row <- which(d[,disp_col]==TEC_point)
+     } else {TEC_point <- d[row,disp_col]}
+     
+     line_df = data.frame(x=TEC_point,y=0:10)
+     plt <- plt %>% add_trace(data=line_df,x=~x,y=~y,line=list(width=5,color='red'),mode='lines')
+     
      plt_title <- c("Total Electrical Compliance")
    
      plt <- plt %>% layout(xaxis = list(title = "Distance (mils)"),
@@ -221,7 +248,7 @@ params:
 
  <div style = "float:right">
  ```{r, echo = F, fig.width = 3, fig.height = 6}
- plt
+  plt
  ```
  </div>
 </div>
@@ -241,7 +268,4 @@ kable(params$stats)
 
 
 
-
- 
-  
     
