@@ -8,13 +8,14 @@ library(bslib)
 library(shinyFiles)
 library(DT)
 
-datapath <- "/mnt/Gryffindor/Data_and_Results"
-analysispath <- "/opt/shiny-server/samples/sample-apps/dashtest/analysis"
-RMDPath <- "/opt/shiny-server/samples/sample-apps/dashtest/rmd"
+datapath <- "C:/Users/huntdust/Desktop/ShinyServer/"
+analysispath <- "C:/home/dashTest/Analysis/"
+RMDPath <- "C:/home/dashTest/rmd/"
 datafiles <- list.files(datapath)
 analysisfiles <- list.files(analysispath)
 analysistypes <- list.files(RMDPath)
-setwd("/opt/shiny-server/samples/sample-apps/dashtest")
+
+setwd("C:/home/dashTest")
 
 ui <- 
   navbarPage("Data visualization and analysis tools",id='tabs', collapsible = TRUE, inverse = TRUE, theme = shinytheme("cyborg"),
@@ -202,6 +203,7 @@ ui <-
                             textInput("maxR",label='Y axis limit ',value='0.1'),
                             textInput("TEC_spec",label='DCR Specification',value='0.1'),
                             textInput("TEC_Point", label = "Enter TEC point (if unable to be detected automatically)"),
+                            textInput("TEC_title", label = "Report Title", value = "TEC Report"),
                             #textInput("DCR_spec",label='DCR Specification',value='0.1'),
                             downloadButton("TECReport", "Generate report")
                             #shinyFilesButton('TEC_File',label = 'File select', title = 'Please select file', multiple = FALSE)
@@ -248,6 +250,7 @@ ui <-
                          ),
                          textInput("maxRC",label='Resistance Threshold',value='0.1'),
                          textInput("DCR_spec",label='DCR Specification',value='0.1'),
+                         textInput("CycleReportTitle",label='Report Title',value='Cycling Report'),
                          checkboxInput("enableForce", "Show force trace", value = FALSE), br(), br(), 
                          downloadButton("cycleReport", "Generate report")
                        ),
