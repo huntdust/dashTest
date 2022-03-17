@@ -5,28 +5,30 @@ params:
   maxRC: NA
   enableForce: NA
   cycleStats: NA
-  title: NA 
+  set_title: NA 
   
-title: '`r params$title`'
+title: <span style="color:white"> '`r params$set_title`' </span>
 ---
 
 
-
-```{r, echo=FALSE,warning = FALSE,eval=TRUE}
+```{r, echo=FALSE,warning = FALSE,eval=TRUE, comment=""}
 
      
   #introduce tab/TEC number feature - TEC_Analysis needs to accept plot # argument
-      
+     
       file <- params$cycle_file
-      d <- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE, skip=22)
-      warning(d)
-      cycleLength <- dim(d)[1]
+      numFiles <- dim(params$cycle_file)[1]
+      paths <- file$datapath
       
+      d <- read.delim(paths[1], header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE, skip=22)
+      cycleLength <- dim(d)[1]
+      cycles_total <- cycleLength
       max_resistance <- as.double(params$maxRC)
+      
       
       # Get the columns
       first_resistance_column <<- which(names(d) == "Date") + 1 # used to indicate which column is the first one that contains resistacne data
-      last_resistance_coluimn <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
+      last_resistance_column <<- which(names(d) == "FBSteps") - 1 # specifies the last column that contains resistance data
       Force_column <- which(names(d)=="LdCel.0")              #Load Cell data - forces
       
       ay <- list(
@@ -38,8 +40,8 @@ title: '`r params$title`'
       
       # Create the plot
       numCycles <- dim(d)[1]
-      plt <- plot_ly(data = d[1:cycleLength,], type = "scatter", mode = "lines",width=1000,height=800)
-      for(i in first_resistance_column:last_resistance_coluimn){
+      plt <- plot_ly(data = d[1:cycleLength,], type = "scatter", mode = "lines",height=400)
+      for(i in first_resistance_column:last_resistance_column){
         plt <- plt %>% add_trace(x = d[1], y = d[1:cycleLength,i], name = names(d)[i])
       }
       
@@ -48,10 +50,32 @@ title: '`r params$title`'
         plt <- plt %>% add_trace(x= d[1],y=na.omit(d[1:cycleLength,Force_column]),name = "Force", yaxis="y2",line=list(width=1,color='red'))      #Force trace
       }
       
+      
+      ####################CODE TO HANDLE MULTIPLE FILES##############################
+      cnt<-2
+
+      if (numFiles>1) {
+        for (f in 2:numFiles) {
+
+          d <- read.delim(paths[cnt], header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE, skip=22)
+          cycleLengthNew <- dim(d)[1]
+          
+
+          d$Cycle. <- d$Cycle. + cycles_total
+          cycles_total <- cycles_total + cycleLengthNew
+          
+          
+          for(i in first_resistance_column:last_resistance_column){
+            plt <- plt %>% add_trace(x = d[1], y = d[1:cycleLength,i], name='test')
+          }
+          cnt <- cnt+1
+        }}
+      ###################################################################################
+      
       # Add labels and set range limit
       plt_title <- c("Cycles vs DCR")
       
-      plt <- plt %>% layout(xaxis = list(title = "Cycle"),
+      plt <- plt %>% layout(xaxis = list(title = "Cycles"),
                             yaxis = list(range = c(0,max_resistance),
                                          title = c("Resistance (Ohms)")),
                             title = plt_title,
@@ -59,17 +83,15 @@ title: '`r params$title`'
                             showlegend = FALSE,
                             #Legend fundamentally overlaps the yaxis2 label - this is a known issue 
                             legend = list(orientation="s",xanchor="center"),
-                            margin = list(b=0,t=100,r=0,l=0)
-                            )
-      
+                            margin = list(b=20,t=100,r=100,l=50)
+      )
       
       plt
       
       
-      
 ```
 
-```{r,echo=FALSE}
+```{r,echo=FALSE,comment=""}
       
       file <- params$cycle_file
       d <<- read.delim(file$datapath, header = TRUE, sep = "\t", dec = ".", comment.char = "!", fill = TRUE, skip=22)
@@ -97,11 +119,16 @@ title: '`r params$title`'
 ```
 
 
-```{r,echo=FALSE,warning = FALSE}
+```{r,echo=FALSE,warning = FALSE,comment=""}
 #statistics table output 
 library(knitr)
-kable(params$cycleStats)
+dat <- datatable(params$cycleStats, options = list(paging=FALSE)) %>% formatStyle(names(params$cycleStats),color = 'white', backgroundColor = 'black', fontWeight = 'bold',target='row')
+dat
 ```
 
 
+<style>
+    body { background-color: black; }
+    pre, pre:not([class]) { background-color: red; }
+</style>
     
