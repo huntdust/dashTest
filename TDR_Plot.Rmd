@@ -1,0 +1,46 @@
+---
+output: html_document
+params:
+  TDR_Files: NA
+  TDR_Scale: NA
+  set_title: NA
+title: <span style="color:white"> '`r params$set_title`' </span>
+---
+
+
+```{r, echo=FALSE,warning = FALSE,eval=TRUE, comment=""}
+
+   files <- params$TDR_Files
+    
+    paths <- files$datapath
+    numFiles <- dim(params$TDR_Files)[1]
+    names <- files$name
+    
+    #Read the first file 
+    d <- read.delim(paths[1],sep=',')
+    colnames(d)[1] <- "X"
+    colnames(d)[2] <- "Y"
+    plt <- plot_ly(data=d,x=~X,y=~Y,type='scatter',mode='lines',name=names[1])
+    
+    #Read the rest of the files
+    if (numFiles>1) {
+      for (f in 2:numFiles) {
+
+        d <- read.delim(paths[f],sep=',')
+        colnames(d)[1] <- "X"
+        colnames(d)[2] <- "Y"
+        
+        plt <- plt %>% add_trace(data=d,x=~X,y=~Y,type='scatter',mode='lines',name=names[f])
+        #  fig <- fig %>% add_markers(data=data,x=~f,y=~db, name = names[cnt],mode='lines')
+
+      }}
+     plt <- plt %>% layout(title = 'TDR Plot',xaxis=list(title='Time (s)'),yaxis=list(title='Impedance (Ohm)',range=list(0,params$TDR_Scale)),legend = list(orientation="s",xanchor="center"))
+    plt
+    
+      
+```
+
+<style>
+    body { background-color: black; }
+    pre, pre:not([class]) { background-color: red; }
+</style>
