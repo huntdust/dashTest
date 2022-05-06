@@ -13,7 +13,6 @@ analysispath <- "/opt/shiny-server/samples/sample-apps/dashtest/analysis"
 addResourcePath("tmpuser",getwd())
 reticulate::use_virtualenv("/opt/shiny-server/samples/sample-apps/dashtest/testenv",required=TRUE)
 reticulate::use_python("/usr/bin/python2.7")
-
 options(shiny.maxRequestSize=30*1024^8)
 
 server <- function(input,output,session) {
@@ -115,6 +114,19 @@ server <- function(input,output,session) {
   
   #shinyFileChoose(input, 'files', root=c(root='.'), filetypes=c('', '.txt', '.html', '.s2p', '.R', '.Rmd'))
   
+  nports <- reactive({
+    req(input$s2pFiles)
+    file <- input$s2pFiles
+    net  <- skrf$Network(file$datapath[1])
+    test <- net$nports
+    test
+  })
+  
+  output$s4p_matrix <- renderUI({
+    req(nports()==4)
+    radioMatrixInput(inputId = "s4p_matrix",rowIDs=c("1","2","3","4"),rowLLabels=c("1","2","3","4"),choices=c("1","2","3","4"))
+    
+  })
   
   #######S2P PLOTTING VERSION 2######################
   
@@ -129,40 +141,83 @@ server <- function(input,output,session) {
     names <- file$name
     
     net <- skrf$Network(file$datapath[1])
-    s11 <- net$s11
-    db <- s11$s_db
-    f <-  s11$f
-    f <- f/(1e9)
-    data <- data.frame(f,db)
     
-    
-    fig <- plot_ly(data,x=~f,y=~db,type='scatter',mode='lines',name=names[1],hoverinfo = names[1])
-    cnt<-2
-    
-    if (numFiles>1) {
-      for (f in 2:numFiles) {
-        #file 
-        net <- skrf$Network(paths[cnt])
-        s11 <- net$s11
-        f <-  s11$f
-        f <- f/(1e9)
-        db <- s11$s_db
-        data <- data.frame(f,db)
-        data$db <- unlist(data$db)
-        
-        #add_marker(data=Df_game, name="line2", x = ~Timestamp, y = ~CurrentRecognitionRate)
-        
-        fig <- fig %>% add_trace(data=data,x=~f,y=~db,mode='lines', name = names[cnt],hoverinfo = names[cnt])
-        #  fig <- fig %>% add_markers(data=data,x=~f,y=~db, name = names[cnt],mode='lines')
-        cnt <- cnt+1
-      }}
-    
-    fig <- fig %>% layout(title='S11',xaxis=list(title='Frequency (Ghz)'),yaxis=list(title='Magnitude of S11 (dB)'),legend = list(orientation="h",y=-0.3)) 
-    fig <- fig %>% animation_opts(frame = 20)
-    fig
-    
+    #if it is a 2-port device, plot s11 and s21
+    if(net$nports==2){
+      s11 <- net$s11
+      db <- s11$s_db
+      f <-  s11$f
+      f <- f/(1e9)
+      data <- data.frame(f,db)
+      
+      
+      fig <- plot_ly(data,x=~f,y=~db,type='scatter',mode='lines',name=names[1],hoverinfo = names[1])
+      cnt<-2
+      
+      if (numFiles>1) {
+        for (f in 2:numFiles) {
+          #file 
+          net <- skrf$Network(paths[cnt])
+          s11 <- net$s11
+          f <-  s11$f
+          f <- f/(1e9)
+          db <- s11$s_db
+          data <- data.frame(f,db)
+          data$db <- unlist(data$db)
+          
+          #add_marker(data=Df_game, name="line2", x = ~Timestamp, y = ~CurrentRecognitionRate)
+          
+          fig <- fig %>% add_trace(data=data,x=~f,y=~db,mode='lines', name = names[cnt],hoverinfo = names[cnt])
+          #  fig <- fig %>% add_markers(data=data,x=~f,y=~db, name = names[cnt],mode='lines')
+          cnt <- cnt+1
+        }}
+      
+      fig <- fig %>% layout(title='S11',xaxis=list(title='Frequency (Ghz)'),yaxis=list(title='Magnitude of S11 (dB)'),legend = list(orientation="h",y=-0.3)) 
+      fig <- fig %>% animation_opts(frame = 20)
+      fig
+      
+    #if it is a 4-port device, create a radio button matrix for the user to select which plots they want to display  
+    } else if (net$nports==4) {
+      s11 <- net$s11
+      db <- s11$s_db
+      f <-  s11$f
+      f <- f/(1e9)
+      data <- data.frame(f,db)
+      
+      #work through matrix to determine which radiobuttons are selected and update the UI accordingly 
+      
+     fig <- plot_ly(data,x=~f,y=~db,type='scatter',mode='lines',name=names[1],hoverinfo = names[1])
+      cnt<-2
+      
+      if (numFiles>1) {
+        for (f in 2:numFiles) {
+          #file 
+          net <- skrf$Network(paths[cnt])
+          s11 <- net$s11
+          f <-  s11$f
+          f <- f/(1e9)
+          db <- s11$s_db
+          data <- data.frame(f,db)
+          data$db <- unlist(data$db)
+          
+          #add_marker(data=Df_game, name="line2", x = ~Timestamp, y = ~CurrentRecognitionRate)
+          
+          fig <- fig %>% add_trace(data=data,x=~f,y=~db,mode='lines', name = names[cnt],hoverinfo = names[cnt])
+          #  fig <- fig %>% add_markers(data=data,x=~f,y=~db, name = names[cnt],mode='lines')
+          cnt <- cnt+1
+        }}
+      
+      fig <- fig %>% layout(title='S11',xaxis=list(title='Frequency (Ghz)'),yaxis=list(title='Magnitude of S11 (dB)'),legend = list(orientation="h",y=-0.3)) 
+      fig <- fig %>% animation_opts(frame = 20)
+      fig
+      
+      
+      
+    }
     #RE-WRITE WITH PLOTLY SO THAT NAMES CAN BE ASSIGNED APPROPRIATELY 
   })
+  
+
   
   output$s2pPlot2 <- renderPlotly({
     req(input$s2pFiles)
@@ -573,7 +628,11 @@ server <- function(input,output,session) {
     if(input$TEC_Point!="") { 
       TEC_point <- as.double(input$TEC_Point)
       row <- which(d[,disp_col]==TEC_point)
-    } else {TEC_point <- d[row,disp_col]}
+    } else {
+      TEC_point <- d[row,disp_col]
+      row <- which(d[,disp_col]==TEC_point)
+      #row <- findInterval(TEC_point,d[,disp_col])
+      }
     
     TEC_header <- paste('TEC(mOhms) -',toString(TEC_point),' mils')
     compressed_header <- paste("Compressed(mOhms) - ",toString(d[cycleLength,disp_col]), ' mils')
@@ -583,6 +642,7 @@ server <- function(input,output,session) {
     set <- t(d[row,c(first_resistance_column:last_resistance_column)])
     #subset <- round(set[set[,1]<max_resistance],3)
     subset <- set[set<TEC_spec]
+    print(subset)
     
     #Calculate stats at TEC point 
     avgTEC <- signif(mean(subset),4)*10e2
@@ -719,6 +779,9 @@ server <- function(input,output,session) {
         #Get resistance data for one cycle
         temp <- resData[i,]
         
+        #Need to remove values above spec line and below 0 
+        #temp <- temp[temp<input$DCR_spec]
+        temp[,temp<0] <- 0 
         
         #Append resistance data for each cyle to the pattern data to create a sheet
         sheet <- pattern
@@ -1029,6 +1092,7 @@ server <- function(input,output,session) {
     
     #attempt to group all data
     subset <- unlist(subset)
+    subset <- subset[!is.na(subset)]
     
     
     #Calculate the pass rate 
@@ -1037,8 +1101,9 @@ server <- function(input,output,session) {
     colN <- dim(d[,first_resistance_column:last_resistance_column])[2]
     total <- colN*rowN
     failed <- sum(d[,first_resistance_column:last_resistance_column]>spec,na.rm=TRUE)
-    pass_rate <- (1-(failed/total))
+    pass_rate <- signif((1-(failed/total)),3)
     
+    print(subset)
     #compute avg. and stdev. 
     d <- as.double(subset)
     d <- d[d<max_resistance]
@@ -1090,6 +1155,62 @@ server <- function(input,output,session) {
       )
     }
     #})
+  )
+  
+  #################TDR PLOT#################################
+  
+  output$TDR_Plot <- renderPlotly({
+    files <- input$TDR_File
+    
+    paths <- files$datapath
+    numFiles <- dim(input$TDR_File)[1]
+    names <- files$name
+    
+    #Read the first file 
+    d <- read.delim(paths[1],sep=',')
+    colnames(d)[1] <- "X"
+    colnames(d)[2] <- "Y"
+    plt <- plot_ly(data=d,x=~X,y=~Y,type='scatter',mode='lines',name=names[1])
+    
+    #Read the rest of the files
+    if (numFiles>1) {
+      for (f in 2:numFiles) {
+
+        d <- read.delim(paths[f],sep=',')
+        colnames(d)[1] <- "X"
+        colnames(d)[2] <- "Y"
+        
+        plt <- plt %>% add_trace(data=d,x=~X,y=~Y,type='scatter',mode='lines',name=names[f])
+        #  fig <- fig %>% add_markers(data=data,x=~f,y=~db, name = names[cnt],mode='lines')
+
+      }}
+    plt <- plt %>% layout(title = 'TDR Plot',xaxis=list(title='Time (s)'),yaxis=list(title='Impedance (Ohm)',range=list(0,input$TDR_Scale)),legend = list(orientation="s",xanchor="center"))
+    plt
+    
+  })
+  
+  ###TDR Report Handler
+  
+  output$TDR_Report <- downloadHandler(
+    filename = "TDRReport.html",
+    content = function(file) {
+      # Copy the report file to a temporary directory before processing it, in
+      # case we don't have write permissions to the current working dir (which
+      # can happen when deployed).
+      tempReport <- file.path(tempdir(), "TDR_Plot.Rmd")
+      file.copy("TDR_Plot.Rmd", tempReport, overwrite = TRUE)
+      
+      # Set up parameters to pass to Rmd document
+      params <- list(TDR_Scale=input$TDR_Scale, TDR_Files=input$TDR_File, set_title=input$TDR_Report_Title)
+      
+      # Knit the document, passing in the `params` list, and eval it in a
+      # child of the global environment (this isolates the code in the document
+      # from the code in this app).
+      rmarkdown::render(tempReport, output_file = file,
+                        params = params,
+                        envir = new.env(parent = globalenv())
+      )
+    }
   )
   
   
