@@ -7,6 +7,7 @@ library(knitr)
 library(bslib)
 library(shinyFiles)
 library(DT)
+library(shinyRadioMatrix)
 
 datapath <- "/mnt/Gryffindor/Data_and_Results"
 analysispath <- "/opt/shiny-server/samples/sample-apps/dashtest/analysis"
@@ -15,6 +16,7 @@ datafiles <- list.files(datapath)
 analysisfiles <- list.files(analysispath)
 analysistypes <- list.files(RMDPath)
 setwd("/opt/shiny-server/samples/sample-apps/dashtest")
+
 
 ui <- 
   navbarPage("Data visualization and analysis tools",id='tabs', collapsible = TRUE, inverse = TRUE, theme = shinytheme("cyborg"),
@@ -29,7 +31,19 @@ ui <-
                               buttonLabel = "Browse...",
                               placeholder = "No file selected"
                             ),
-                            downloadButton("report", "Generate report"), 
+                            textInput("s2p_title","Report Title",value="S-Parameters Report"),
+                            radioButtons(
+                              inputId = "s2p_spec_lines",
+                              label = "spec limits",
+                              choices =  c("Falcon","mx44")
+                            ), br(), br(),
+                            
+                            #If user inputs an s4p file, create a radio button matrix to select which measurements to display 
+                            uiOutput("s4p_matrix"),
+                            checkboxInput("s2p_pdf", "pdf report (default is html)", value = FALSE),
+                            checkboxInput("include_tdr_conversion", "Include time domain conversion", value = TRUE),
+                            downloadButton("report", "Generate report")
+                            
                             #checkboxInput("includeStats_s2p", "include statistical analysis", value = FALSE)
                           ),
                           mainPanel(
@@ -135,6 +149,27 @@ ui <-
                             plotlyOutput(outputId='CyclesHist'), br(),
                             #plotlyOutput(outputId='CyclesHistSlider'), br(),
                             DTOutput("cycleStats", width = "90%",height = "auto")  
+                          )
+                        )
+                      )
+             ),
+             tabPanel("TDR Plot",
+                      fluidPage(
+                        sidebarLayout(
+                          sidebarPanel(
+                            fileInput(
+                              inputId = "TDR_File",
+                              label = "Select TDR Data",
+                              multiple = TRUE,
+                              buttonLabel = "Browse...",
+                              placeholder = "No file selected"
+                            ),
+                            textInput("TDR_Scale",label='Plot Scale',value='100'),
+                            textInput("TDR_Report_Title",label='Report Title',value='TDR Report'),
+                            downloadButton("TDR_Report", "Generate report")
+                          ),
+                          mainPanel(
+                            plotlyOutput(outputId='TDR_Plot')
                           )
                         )
                       )
